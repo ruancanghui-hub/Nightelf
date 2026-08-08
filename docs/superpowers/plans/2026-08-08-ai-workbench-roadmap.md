@@ -25,14 +25,15 @@
 
 ## Dependency Order
 
-1. [Phase 1 — Foundation and Vault](2026-08-08-ai-workbench-01-foundation-vault.md)
-2. [Phase 2 — Desktop Shell, Editor, Search, and Metadata](2026-08-08-ai-workbench-02-shell-editor-search.md)
-3. [Phase 3 — Prompt, SKILL, and MCP Workspaces](2026-08-08-ai-workbench-03-prompt-skill-mcp.md)
-4. [Phase 4 — Website and Workflow Workspaces](2026-08-08-ai-workbench-04-web-workflow.md)
-5. [Phase 5 — Git Sync, Conflict Review, and Secret Safety](2026-08-08-ai-workbench-05-git-conflicts-security.md)
-6. [Phase 6 — Integration, Performance, Accessibility, and Release](2026-08-08-ai-workbench-06-integration-release.md)
+1. [UI Foundation — Visual Shell First](2026-08-08-ai-workbench-00-ui-foundation.md)
+2. [Phase 1 — Foundation and Vault](2026-08-08-ai-workbench-01-foundation-vault.md)
+3. [Phase 2 — Desktop Shell, Editor, Search, and Metadata](2026-08-08-ai-workbench-02-shell-editor-search.md)
+4. [Phase 3 — Prompt, SKILL, and MCP Workspaces](2026-08-08-ai-workbench-03-prompt-skill-mcp.md)
+5. [Phase 4 — Website and Workflow Workspaces](2026-08-08-ai-workbench-04-web-workflow.md)
+6. [Phase 5 — Git Sync, Conflict Review, and Secret Safety](2026-08-08-ai-workbench-05-git-conflicts-security.md)
+7. [Phase 6 — Integration, Performance, Accessibility, and Release](2026-08-08-ai-workbench-06-integration-release.md)
 
-Each phase starts from the previous phase's green main branch. Do not run later phases in parallel because their public interfaces depend on earlier phases.
+The UI Foundation uses mock data only and deliberately introduces no Vault, filesystem, Git, execution, or network behavior. Each later phase replaces a mock adapter behind the UI without changing the confirmed visual hierarchy. Each phase starts from the previous phase's green main branch. Do not run later phases in parallel because their public interfaces depend on earlier phases.
 
 ## Specification Coverage
 
