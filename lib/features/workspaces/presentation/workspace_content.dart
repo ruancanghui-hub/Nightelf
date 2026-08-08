@@ -1,5 +1,4 @@
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
-import 'package:ai_workbench/features/shell/presentation/workbench_focus_ring.dart';
 import 'package:ai_workbench/features/workspaces/presentation/mcp_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/prompt_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/skill_workspace.dart';
@@ -105,7 +104,7 @@ class WorkspaceContent extends StatelessWidget {
     ),
     ResourceType.skillFolder => const _WorkspacePresentation(
       typeLabel: 'SKILL 文件夹',
-      status: '只读模拟源码',
+      status: '模拟草稿 · 未写入磁盘',
       primaryAction: '保存模拟版本',
       secondaryAction: '检查模拟结构',
       surface: SkillWorkspace(),
@@ -224,13 +223,9 @@ class _WorkspaceInspector extends StatelessWidget {
           const SizedBox(height: 16),
           _StatusPill(label: presentation.status),
           const SizedBox(height: 20),
-          _FocusableWorkspaceAction(
-            focusKey: const ValueKey('workspace-primary-action-focus'),
-            label: presentation.primaryAction,
-          ),
+          _DisabledWorkspaceAction(label: presentation.primaryAction),
           const SizedBox(height: 8),
-          _FocusableWorkspaceAction(
-            focusKey: const ValueKey('workspace-secondary-action-focus'),
+          _DisabledWorkspaceAction(
             label: presentation.secondaryAction,
             secondary: true,
           ),
@@ -245,36 +240,28 @@ class _WorkspaceInspector extends StatelessWidget {
   }
 }
 
-class _FocusableWorkspaceAction extends StatelessWidget {
-  const _FocusableWorkspaceAction({
-    required this.focusKey,
-    required this.label,
-    this.secondary = false,
-  });
+class _DisabledWorkspaceAction extends StatelessWidget {
+  const _DisabledWorkspaceAction({required this.label, this.secondary = false});
 
-  final Key focusKey;
   final String label;
   final bool secondary;
 
-  void _runMockAction() {}
-
   @override
   Widget build(BuildContext context) {
-    final focusKey = this.focusKey;
-    final indicatorKey = focusKey is ValueKey<String>
-        ? ValueKey('${focusKey.value}-indicator')
-        : ValueKey('$focusKey-indicator');
-
-    return WorkbenchFocusRing(
-      focusKey: focusKey,
-      indicatorKey: indicatorKey,
-      onActivate: _runMockAction,
-      child: PushButton(
-        controlSize: ControlSize.large,
-        secondary: secondary,
-        semanticLabel: label,
-        onPressed: _runMockAction,
-        child: Text(label),
+    const tooltip = '视觉占位：操作尚未接入';
+    return MacosTooltip(
+      message: tooltip,
+      child: Semantics(
+        label: '$label：$tooltip',
+        button: true,
+        enabled: false,
+        child: PushButton(
+          controlSize: ControlSize.large,
+          secondary: secondary,
+          semanticLabel: label,
+          onPressed: null,
+          child: Text(label),
+        ),
       ),
     );
   }

@@ -61,7 +61,32 @@ void main() {
     expect(find.text('保存模拟版本'), findsOneWidget);
   });
 
-  testWidgets('SKILL workspace shows its folder and source previews', (
+  testWidgets(
+    'inspector future actions are disabled with explanatory tooltips',
+    (tester) async {
+      await pumpShell(tester);
+
+      for (final label in const ['保存模拟版本', '预览模拟变更']) {
+        final control = find.byWidgetPredicate(
+          (widget) => widget is PushButton && widget.semanticLabel == label,
+        );
+        expect(control, findsOneWidget);
+        expect(tester.widget<PushButton>(control).onPressed, isNull);
+        expect(
+          find.ancestor(
+            of: control,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is MacosTooltip && widget.message == '视觉占位：操作尚未接入',
+            ),
+          ),
+          findsOneWidget,
+        );
+      }
+    },
+  );
+
+  testWidgets('SKILL workspace shows an editable mock source and save state', (
     tester,
   ) async {
     await pumpShell(tester);
@@ -69,7 +94,10 @@ void main() {
 
     expect(find.text('目录预览'), findsOneWidget);
     expect(find.text('SKILL.md'), findsWidgets);
-    expect(find.text('只读模拟源码'), findsWidgets);
+    expect(find.text('模拟可编辑外观'), findsOneWidget);
+    expect(find.text('模拟草稿 · 未写入磁盘'), findsWidgets);
+    expect(find.text('保存模拟版本'), findsOneWidget);
+    expect(find.text('只读模拟源码'), findsNothing);
   });
 
   testWidgets(
@@ -195,59 +223,50 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
   });
 
-  testWidgets(
-    'keyboard focus reaches sidebar search tabs and inspector actions',
-    (tester) async {
-      final semantics = tester.ensureSemantics();
-      try {
-        await pumpShell(tester);
+  testWidgets('keyboard focus reaches sidebar search and tabs', (tester) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await pumpShell(tester);
 
-        for (final key in const [
-          ValueKey('sidebar-focus-aiPrompt'),
-          ValueKey('tab-focus-prompt-release-notes'),
-          ValueKey('workspace-primary-action-focus'),
-          ValueKey('workspace-secondary-action-focus'),
-        ]) {
-          final focus = find.byKey(key);
-          expect(focus, findsOneWidget);
-          final focusWidget = tester.widget<Focus>(focus);
-          expect(focusWidget.focusNode, isNotNull);
-          focusWidget.focusNode!.requestFocus();
-          await tester.pumpAndSettle();
-          expect(
-            focusWidget.focusNode!.hasFocus,
-            isTrue,
-            reason: key.toString(),
-          );
+      for (final key in const [
+        ValueKey('sidebar-focus-aiPrompt'),
+        ValueKey('tab-focus-prompt-release-notes'),
+      ]) {
+        final focus = find.byKey(key);
+        expect(focus, findsOneWidget);
+        final focusWidget = tester.widget<Focus>(focus);
+        expect(focusWidget.focusNode, isNotNull);
+        focusWidget.focusNode!.requestFocus();
+        await tester.pumpAndSettle();
+        expect(focusWidget.focusNode!.hasFocus, isTrue, reason: key.toString());
 
-          final indicator = find.byKey(ValueKey('${key.value}-indicator'));
-          expect(indicator, findsOneWidget);
-          final decoration =
-              tester.widget<AnimatedContainer>(indicator).decoration
-                  as BoxDecoration;
-          final focusedBorder = decoration.border! as Border;
-          expect(
-            focusedBorder.top.color,
-            MacosTheme.of(tester.element(indicator)).primaryColor,
-            reason: 'visible focus ring for ${key.value}',
-          );
-          expect(
-            tester.getSemantics(indicator).flagsCollection.isFocused,
-            Tristate.isTrue,
-            reason: 'focused semantics for ${key.value}',
-          );
-        }
-
-        final search = tester.widget<MacosSearchField>(
-          find.byKey(const ValueKey('resource-search')),
+        final indicator = find.byKey(ValueKey('${key.value}-indicator'));
+        expect(indicator, findsOneWidget);
+        final decoration =
+            tester.widget<AnimatedContainer>(indicator).decoration
+                as BoxDecoration;
+        final focusedBorder = decoration.border! as Border;
+        expect(
+          focusedBorder.top.color,
+          MacosTheme.of(tester.element(indicator)).primaryColor,
+          reason: 'visible focus ring for ${key.value}',
         );
-        expect(search.focusNode, isNotNull);
-        search.focusNode!.requestFocus();
-        await tester.pump();
-        expect(search.focusNode!.hasFocus, isTrue);
-      } finally {
-        semantics.dispose();
+        expect(
+          tester.getSemantics(indicator).flagsCollection.isFocused,
+          Tristate.isTrue,
+          reason: 'focused semantics for ${key.value}',
+        );
       }
-    },
-  );
+
+      final search = tester.widget<MacosSearchField>(
+        find.byKey(const ValueKey('resource-search')),
+      );
+      expect(search.focusNode, isNotNull);
+      search.focusNode!.requestFocus();
+      await tester.pump();
+      expect(search.focusNode!.hasFocus, isTrue);
+    } finally {
+      semantics.dispose();
+    }
+  });
 }

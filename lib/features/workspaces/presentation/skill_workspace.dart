@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
-/// Static SKILL folder and source preview.
+/// Editable-looking SKILL source preview with no editing or persistence.
 class SkillWorkspace extends StatelessWidget {
   const SkillWorkspace({super.key});
 
@@ -81,7 +81,10 @@ class _SkillSource extends StatelessWidget {
                 'SKILL.md',
                 style: MacosTheme.of(context).typography.headline,
               ),
-              Text('只读模拟源码', style: MacosTheme.of(context).typography.caption1),
+              Text(
+                '模拟可编辑外观',
+                style: MacosTheme.of(context).typography.caption1,
+              ),
             ],
           ),
           const SizedBox(height: 18),
