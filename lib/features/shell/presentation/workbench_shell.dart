@@ -52,6 +52,16 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
     type: resource.type,
   );
 
+  WorkbenchResource? get _activeResource {
+    final activeId = _tabsController.activeResourceId;
+    return activeId == null ? null : _controller.resourceById(activeId);
+  }
+
+  void _selectDestination(ResourceType type) {
+    _controller.selectDestination(type);
+    _tabsController.openTab(_tabFor(_controller.selectedResource));
+  }
+
   void _openResource(WorkbenchResource resource) {
     _controller.selectResource(resource);
     _tabsController.openTab(_tabFor(resource));
@@ -108,8 +118,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                             children: [
                               WorkbenchSidebar(
                                 controller: _controller,
-                                onDestinationSelected:
-                                    _controller.selectDestination,
+                                onDestinationSelected: _selectDestination,
                               ),
                               ResourceListPane(
                                 controller: _controller,
@@ -125,7 +134,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                                     ),
                                     Expanded(
                                       child: _InspectorPane(
-                                        resource: _controller.selectedResource,
+                                        resource: _activeResource,
                                       ),
                                     ),
                                   ],
@@ -156,9 +165,9 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
 class _InspectorPane extends StatelessWidget {
   const _InspectorPane({required this.resource});
 
-  final WorkbenchResource resource;
+  final WorkbenchResource? resource;
 
-  String get _typeLabel => switch (resource.type) {
+  String _typeLabel(WorkbenchResource resource) => switch (resource.type) {
     ResourceType.aiPrompt => 'AI 提示词',
     ResourceType.skillFolder => 'SKILL 文件夹',
     ResourceType.mcpConfiguration => 'MCP 配置',
@@ -168,6 +177,8 @@ class _InspectorPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resource = this.resource;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(40),
@@ -176,42 +187,54 @@ class _InspectorPane extends StatelessWidget {
           left: BorderSide(color: MacosTheme.of(context).dividerColor),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            resource.title,
-            style: MacosTheme.of(context).typography.largeTitle,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            resource.subtitle,
-            style: MacosTheme.of(context).typography.title3,
-          ),
-          const SizedBox(height: 32),
-          Container(
-            width: 360,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: MacosTheme.of(context).canvasColor,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: MacosTheme.of(context).dividerColor),
-            ),
-            child: Column(
+      child: resource == null
+          ? Center(
+              child: Text(
+                '选择资源以查看详细信息',
+                style: MacosTheme.of(context).typography.title3,
+              ),
+            )
+          : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('资源信息', style: MacosTheme.of(context).typography.headline),
+                Text(
+                  resource.title,
+                  style: MacosTheme.of(context).typography.largeTitle,
+                ),
                 const SizedBox(height: 12),
-                Text('类型：$_typeLabel'),
-                const SizedBox(height: 8),
-                Text('资源 ID：${resource.id}'),
-                const SizedBox(height: 8),
-                const Text('数据源：模拟资源'),
+                Text(
+                  resource.subtitle,
+                  style: MacosTheme.of(context).typography.title3,
+                ),
+                const SizedBox(height: 32),
+                Container(
+                  width: 360,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: MacosTheme.of(context).canvasColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: MacosTheme.of(context).dividerColor,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '资源信息',
+                        style: MacosTheme.of(context).typography.headline,
+                      ),
+                      const SizedBox(height: 12),
+                      Text('类型：${_typeLabel(resource)}'),
+                      const SizedBox(height: 8),
+                      Text('资源 ID：${resource.id}'),
+                      const SizedBox(height: 8),
+                      const Text('数据源：模拟资源'),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

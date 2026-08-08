@@ -45,11 +45,14 @@ class WorkspaceTabStrip extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                PushButton(
-                  controlSize: ControlSize.regular,
-                  semanticLabel: '激活标签页：${tab.title}',
-                  onPressed: () => onTabActivated(tab.resourceId),
-                  child: Text(tab.title),
+                Semantics(
+                  selected: isActive,
+                  child: PushButton(
+                    controlSize: ControlSize.regular,
+                    semanticLabel: '激活标签页：${tab.title}',
+                    onPressed: () => onTabActivated(tab.resourceId),
+                    child: Text(tab.title),
+                  ),
                 ),
                 MacosIconButton(
                   icon: const Text('×'),
