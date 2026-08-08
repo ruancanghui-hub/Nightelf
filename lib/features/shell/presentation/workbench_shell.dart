@@ -1,7 +1,13 @@
+import 'package:ai_workbench/features/command_palette/presentation/command_palette.dart';
+import 'package:ai_workbench/features/library/presentation/resource_list_pane.dart';
 import 'package:ai_workbench/features/shell/application/workbench_controller.dart';
+import 'package:ai_workbench/features/shell/application/workspace_tabs_controller.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
+import 'package:ai_workbench/features/shell/domain/workspace_tab.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_toolbar.dart';
+import 'package:ai_workbench/features/shell/presentation/workspace_tab_strip.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -14,12 +20,25 @@ class WorkbenchShell extends StatefulWidget {
 }
 
 class _WorkbenchShellState extends State<WorkbenchShell> {
-  late final WorkbenchController _controller = WorkbenchController()
-    ..addListener(_refresh);
+  late final WorkbenchController _controller;
+  late final WorkspaceTabsController _tabsController;
+  bool _isPaletteOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WorkbenchController()..addListener(_refresh);
+    _tabsController = WorkspaceTabsController()
+      ..openTab(_tabFor(_controller.selectedResource))
+      ..addListener(_refresh);
+  }
 
   @override
   void dispose() {
     _controller
+      ..removeListener(_refresh)
+      ..dispose();
+    _tabsController
       ..removeListener(_refresh)
       ..dispose();
     super.dispose();
@@ -27,86 +46,107 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
 
   void _refresh() => setState(() {});
 
-  @override
-  Widget build(BuildContext context) {
-    return MacosWindow(
-      child: MacosScaffold(
-        children: [
-          ContentArea(
-            builder: (context, scrollController) => Column(
-              children: [
-                const WorkbenchToolbar(),
-                Expanded(
-                  child: Row(
-                    children: [
-                      WorkbenchSidebar(
-                        controller: _controller,
-                        onDestinationSelected: _controller.selectDestination,
-                      ),
-                      _ResourceListPane(
-                        controller: _controller,
-                        onResourceSelected: _controller.selectResource,
-                      ),
-                      _InspectorPane(resource: _controller.selectedResource),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  WorkspaceTab _tabFor(WorkbenchResource resource) => WorkspaceTab(
+    resourceId: resource.id,
+    title: resource.title,
+    type: resource.type,
+  );
+
+  void _openResource(WorkbenchResource resource) {
+    _controller.selectResource(resource);
+    _tabsController.openTab(_tabFor(resource));
+    if (_isPaletteOpen) {
+      setState(() => _isPaletteOpen = false);
+    }
   }
-}
 
-class _ResourceListPane extends StatelessWidget {
-  const _ResourceListPane({
-    required this.controller,
-    required this.onResourceSelected,
-  });
+  void _activateTab(String resourceId) {
+    final resource = _controller.resourceById(resourceId);
+    if (resource == null) {
+      return;
+    }
+    _tabsController.activateTab(resourceId);
+    _controller.selectResource(resource);
+  }
 
-  final WorkbenchController controller;
-  final ValueChanged<WorkbenchResource> onResourceSelected;
+  void _closeTab(String resourceId) {
+    _tabsController.closeTab(resourceId);
+    final activeId = _tabsController.activeResourceId;
+    final resource = activeId == null
+        ? null
+        : _controller.resourceById(activeId);
+    if (resource != null) {
+      _controller.selectResource(resource);
+    }
+  }
+
+  void _openPalette() => setState(() => _isPaletteOpen = true);
+
+  void _closePalette() => setState(() => _isPaletteOpen = false);
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 320,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              controller.labelFor(controller.selectedDestination),
-              style: MacosTheme.of(context).typography.title2,
-            ),
-            const SizedBox(height: 14),
-            for (final resource in controller.selectedResources)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: PushButton(
-                  controlSize: ControlSize.large,
-                  semanticLabel: '选择资源：${resource.title}',
-                  onPressed: () => onResourceSelected(resource),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
+            _openPalette,
+        const SingleActivator(LogicalKeyboardKey.escape): _closePalette,
+      },
+      child: Focus(
+        autofocus: true,
+        child: MacosWindow(
+          child: Stack(
+            children: [
+              MacosScaffold(
+                children: [
+                  ContentArea(
+                    builder: (context, scrollController) => Column(
                       children: [
-                        Text(resource.title),
-                        const SizedBox(height: 2),
-                        Text(
-                          resource.subtitle,
-                          style: MacosTheme.of(context).typography.caption1,
+                        WorkbenchToolbar(onGlobalSearch: _openPalette),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              WorkbenchSidebar(
+                                controller: _controller,
+                                onDestinationSelected:
+                                    _controller.selectDestination,
+                              ),
+                              ResourceListPane(
+                                controller: _controller,
+                                onResourceSelected: _openResource,
+                              ),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    WorkspaceTabStrip(
+                                      controller: _tabsController,
+                                      onTabActivated: _activateTab,
+                                      onTabClosed: _closeTab,
+                                    ),
+                                    Expanded(
+                                      child: _InspectorPane(
+                                        resource: _controller.selectedResource,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
-          ],
+              if (_isPaletteOpen)
+                CommandPalette(
+                  resources: _controller.allResources,
+                  onResourceSelected: _openResource,
+                  onDismissed: _closePalette,
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -118,35 +158,59 @@ class _InspectorPane extends StatelessWidget {
 
   final WorkbenchResource resource;
 
+  String get _typeLabel => switch (resource.type) {
+    ResourceType.aiPrompt => 'AI 提示词',
+    ResourceType.skillFolder => 'SKILL 文件夹',
+    ResourceType.mcpConfiguration => 'MCP 配置',
+    ResourceType.websiteLink => '网站链接',
+    ResourceType.workflowFile => 'Workflow 文件',
+  };
+
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(40),
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: MacosTheme.of(context).dividerColor),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: MacosTheme.of(context).dividerColor),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            resource.title,
+            style: MacosTheme.of(context).typography.largeTitle,
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              resource.title,
-              style: MacosTheme.of(context).typography.largeTitle,
+          const SizedBox(height: 12),
+          Text(
+            resource.subtitle,
+            style: MacosTheme.of(context).typography.title3,
+          ),
+          const SizedBox(height: 32),
+          Container(
+            width: 360,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: MacosTheme.of(context).canvasColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: MacosTheme.of(context).dividerColor),
             ),
-            const SizedBox(height: 12),
-            Text(
-              resource.subtitle,
-              style: MacosTheme.of(context).typography.title3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('资源信息', style: MacosTheme.of(context).typography.headline),
+                const SizedBox(height: 12),
+                Text('类型：$_typeLabel'),
+                const SizedBox(height: 8),
+                Text('资源 ID：${resource.id}'),
+                const SizedBox(height: 8),
+                const Text('数据源：模拟资源'),
+              ],
             ),
-            const SizedBox(height: 32),
-            Text(
-              '此区域仅展示确定性的模拟资源。',
-              style: MacosTheme.of(context).typography.body,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

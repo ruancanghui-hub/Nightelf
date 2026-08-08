@@ -68,6 +68,8 @@ class WorkbenchController extends ChangeNotifier {
 
   WorkbenchResource get selectedResource => _selectedResource;
 
+  List<WorkbenchResource> get allResources => List.unmodifiable(_resources);
+
   List<WorkbenchResource> get selectedResources => _resources
       .where((resource) => resource.type == _selectedDestination)
       .toList();
@@ -78,6 +80,15 @@ class WorkbenchController extends ChangeNotifier {
   List<WorkbenchResource> get recentResources => _resources.take(3).toList();
 
   String labelFor(ResourceType type) => _destinationLabels[type]!;
+
+  WorkbenchResource? resourceById(String id) {
+    for (final resource in _resources) {
+      if (resource.id == id) {
+        return resource;
+      }
+    }
+    return null;
+  }
 
   void selectDestination(ResourceType type) {
     _selectedDestination = type;

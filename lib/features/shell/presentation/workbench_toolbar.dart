@@ -3,7 +3,9 @@ import 'package:macos_ui/macos_ui.dart';
 
 /// The static top toolbar for the mock workbench shell.
 class WorkbenchToolbar extends StatelessWidget {
-  const WorkbenchToolbar({super.key});
+  const WorkbenchToolbar({this.onGlobalSearch, super.key});
+
+  final VoidCallback? onGlobalSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -29,13 +31,13 @@ class WorkbenchToolbar extends StatelessWidget {
           ),
           const Spacer(),
           MacosTooltip(
-            message: '全局搜索将在后续版本提供',
+            message: '打开命令面板',
             child: Semantics(
               label: '打开全局搜索',
               container: true,
               child: PushButton(
                 controlSize: ControlSize.large,
-                onPressed: null,
+                onPressed: onGlobalSearch,
                 semanticLabel: '打开全局搜索',
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
