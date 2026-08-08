@@ -19,7 +19,14 @@ class ResourceListPane extends StatefulWidget {
 }
 
 class _ResourceListPaneState extends State<ResourceListPane> {
+  final FocusNode _searchFocusNode = FocusNode(debugLabel: 'resource-search');
   String _query = '';
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
 
   List<WorkbenchResource> get _visibleResources {
     final normalizedQuery = _query.trim().toLowerCase();
@@ -52,6 +59,8 @@ class _ResourceListPaneState extends State<ResourceListPane> {
               label: '搜索当前分类',
               textField: true,
               child: MacosSearchField(
+                key: const ValueKey('resource-search'),
+                focusNode: _searchFocusNode,
                 placeholder: '搜索当前分类',
                 onChanged: (query) => setState(() => _query = query),
               ),

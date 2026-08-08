@@ -7,6 +7,7 @@ import 'package:ai_workbench/features/shell/domain/workspace_tab.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_toolbar.dart';
 import 'package:ai_workbench/features/shell/presentation/workspace_tab_strip.dart';
+import 'package:ai_workbench/features/workspaces/presentation/workspace_content.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
@@ -133,7 +134,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                                       onTabClosed: _closeTab,
                                     ),
                                     Expanded(
-                                      child: _InspectorPane(
+                                      child: WorkspaceContent(
                                         resource: _activeResource,
                                       ),
                                     ),
@@ -158,83 +159,6 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _InspectorPane extends StatelessWidget {
-  const _InspectorPane({required this.resource});
-
-  final WorkbenchResource? resource;
-
-  String _typeLabel(WorkbenchResource resource) => switch (resource.type) {
-    ResourceType.aiPrompt => 'AI 提示词',
-    ResourceType.skillFolder => 'SKILL 文件夹',
-    ResourceType.mcpConfiguration => 'MCP 配置',
-    ResourceType.websiteLink => '网站链接',
-    ResourceType.workflowFile => 'Workflow 文件',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final resource = this.resource;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(40),
-      decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(color: MacosTheme.of(context).dividerColor),
-        ),
-      ),
-      child: resource == null
-          ? Center(
-              child: Text(
-                '选择资源以查看详细信息',
-                style: MacosTheme.of(context).typography.title3,
-              ),
-            )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  resource.title,
-                  style: MacosTheme.of(context).typography.largeTitle,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  resource.subtitle,
-                  style: MacosTheme.of(context).typography.title3,
-                ),
-                const SizedBox(height: 32),
-                Container(
-                  width: 360,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: MacosTheme.of(context).canvasColor,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: MacosTheme.of(context).dividerColor,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '资源信息',
-                        style: MacosTheme.of(context).typography.headline,
-                      ),
-                      const SizedBox(height: 12),
-                      Text('类型：${_typeLabel(resource)}'),
-                      const SizedBox(height: 8),
-                      Text('资源 ID：${resource.id}'),
-                      const SizedBox(height: 8),
-                      const Text('数据源：模拟资源'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
     );
   }
 }
