@@ -1,10 +1,10 @@
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
+import 'package:ai_workbench/features/shell/presentation/workbench_focus_ring.dart';
 import 'package:ai_workbench/features/workspaces/presentation/mcp_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/prompt_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/skill_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/website_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/workflow_workspace.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -245,7 +245,7 @@ class _WorkspaceInspector extends StatelessWidget {
   }
 }
 
-class _FocusableWorkspaceAction extends StatefulWidget {
+class _FocusableWorkspaceAction extends StatelessWidget {
   const _FocusableWorkspaceAction({
     required this.focusKey,
     required this.label,
@@ -256,44 +256,25 @@ class _FocusableWorkspaceAction extends StatefulWidget {
   final String label;
   final bool secondary;
 
-  @override
-  State<_FocusableWorkspaceAction> createState() =>
-      _FocusableWorkspaceActionState();
-}
-
-class _FocusableWorkspaceActionState extends State<_FocusableWorkspaceAction> {
-  late final FocusNode _focusNode = FocusNode(debugLabel: widget.label);
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent &&
-        (event.logicalKey == LogicalKeyboardKey.enter ||
-            event.logicalKey == LogicalKeyboardKey.space)) {
-      _runMockAction();
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
-  }
-
   void _runMockAction() {}
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      key: widget.focusKey,
-      focusNode: _focusNode,
-      onKeyEvent: _handleKey,
+    final focusKey = this.focusKey;
+    final indicatorKey = focusKey is ValueKey<String>
+        ? ValueKey('${focusKey.value}-indicator')
+        : ValueKey('$focusKey-indicator');
+
+    return WorkbenchFocusRing(
+      focusKey: focusKey,
+      indicatorKey: indicatorKey,
+      onActivate: _runMockAction,
       child: PushButton(
         controlSize: ControlSize.large,
-        secondary: widget.secondary,
-        semanticLabel: widget.label,
+        secondary: secondary,
+        semanticLabel: label,
         onPressed: _runMockAction,
-        child: Text(widget.label),
+        child: Text(label),
       ),
     );
   }

@@ -1,11 +1,11 @@
 import 'package:ai_workbench/features/shell/application/workbench_controller.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
-import 'package:flutter/services.dart';
+import 'package:ai_workbench/features/shell/presentation/workbench_focus_ring.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 /// Navigation and deterministic quick-access sections for the shell.
-class WorkbenchSidebar extends StatefulWidget {
+class WorkbenchSidebar extends StatelessWidget {
   const WorkbenchSidebar({
     required this.controller,
     required this.onDestinationSelected,
@@ -14,34 +14,6 @@ class WorkbenchSidebar extends StatefulWidget {
 
   final WorkbenchController controller;
   final ValueChanged<ResourceType> onDestinationSelected;
-
-  @override
-  State<WorkbenchSidebar> createState() => _WorkbenchSidebarState();
-}
-
-class _WorkbenchSidebarState extends State<WorkbenchSidebar> {
-  late final Map<ResourceType, FocusNode> _focusNodes = {
-    for (final type in ResourceType.values)
-      type: FocusNode(debugLabel: 'sidebar-${type.name}'),
-  };
-
-  @override
-  void dispose() {
-    for (final node in _focusNodes.values) {
-      node.dispose();
-    }
-    super.dispose();
-  }
-
-  KeyEventResult _handleKey(ResourceType type, KeyEvent event) {
-    if (event is KeyDownEvent &&
-        (event.logicalKey == LogicalKeyboardKey.enter ||
-            event.logicalKey == LogicalKeyboardKey.space)) {
-      widget.onDestinationSelected(type);
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,20 +36,20 @@ class _WorkbenchSidebarState extends State<WorkbenchSidebar> {
           for (final type in ResourceType.values)
             Padding(
               padding: const EdgeInsets.only(bottom: 6),
-              child: Focus(
-                key: ValueKey('sidebar-focus-${type.name}'),
-                focusNode: _focusNodes[type],
-                onKeyEvent: (_, event) => _handleKey(type, event),
+              child: WorkbenchFocusRing(
+                focusKey: ValueKey('sidebar-focus-${type.name}'),
+                indicatorKey: ValueKey('sidebar-focus-${type.name}-indicator'),
+                onActivate: () => onDestinationSelected(type),
                 child: PushButton(
                   controlSize: ControlSize.large,
-                  color: type == widget.controller.selectedDestination
+                  color: type == controller.selectedDestination
                       ? MacosTheme.of(context).primaryColor
                       : null,
-                  semanticLabel: '导航：${widget.controller.labelFor(type)}',
-                  onPressed: () => widget.onDestinationSelected(type),
+                  semanticLabel: '导航：${controller.labelFor(type)}',
+                  onPressed: () => onDestinationSelected(type),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(widget.controller.labelFor(type)),
+                    child: Text(controller.labelFor(type)),
                   ),
                 ),
               ),
@@ -85,12 +57,12 @@ class _WorkbenchSidebarState extends State<WorkbenchSidebar> {
           const SizedBox(height: 18),
           Text('收藏', style: typography.subheadline),
           const SizedBox(height: 6),
-          for (final resource in widget.controller.favoriteResources.take(2))
+          for (final resource in controller.favoriteResources.take(2))
             Text(resource.title, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 18),
           Text('最近使用', style: typography.subheadline),
           const SizedBox(height: 6),
-          for (final resource in widget.controller.recentResources.take(2))
+          for (final resource in controller.recentResources.take(2))
             Text(resource.title, overflow: TextOverflow.ellipsis),
         ],
       ),

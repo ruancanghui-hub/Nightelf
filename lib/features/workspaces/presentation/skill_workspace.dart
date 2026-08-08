@@ -15,7 +15,7 @@ class SkillWorkspace extends StatelessWidget {
         builder: (context, constraints) {
           final directory = const _DirectoryPreview();
           final source = const _SkillSource();
-          if (constraints.maxWidth < 560) {
+          if (!constraints.hasBoundedHeight || constraints.maxWidth < 560) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [directory, const SizedBox(height: 14), source],

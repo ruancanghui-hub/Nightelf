@@ -26,7 +26,7 @@ class WorkflowWorkspace extends StatelessWidget {
         builder: (context, constraints) {
           const source = _MermaidSource();
           const canvas = _StaticCanvas();
-          if (constraints.maxWidth < 620) {
+          if (!constraints.hasBoundedHeight || constraints.maxWidth < 620) {
             return const Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [source, SizedBox(height: 14), canvas],

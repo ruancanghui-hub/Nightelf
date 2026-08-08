@@ -1,10 +1,10 @@
 import 'package:ai_workbench/features/shell/application/workspace_tabs_controller.dart';
-import 'package:flutter/services.dart';
+import 'package:ai_workbench/features/shell/presentation/workbench_focus_ring.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 /// An accessible tab strip for the resources opened in this mock session.
-class WorkspaceTabStrip extends StatefulWidget {
+class WorkspaceTabStrip extends StatelessWidget {
   const WorkspaceTabStrip({
     required this.controller,
     required this.onTabActivated,
@@ -15,36 +15,6 @@ class WorkspaceTabStrip extends StatefulWidget {
   final WorkspaceTabsController controller;
   final ValueChanged<String> onTabActivated;
   final ValueChanged<String> onTabClosed;
-
-  @override
-  State<WorkspaceTabStrip> createState() => _WorkspaceTabStripState();
-}
-
-class _WorkspaceTabStripState extends State<WorkspaceTabStrip> {
-  final Map<String, FocusNode> _focusNodes = {};
-
-  FocusNode _focusNodeFor(String resourceId) => _focusNodes.putIfAbsent(
-    resourceId,
-    () => FocusNode(debugLabel: 'tab-$resourceId'),
-  );
-
-  @override
-  void dispose() {
-    for (final node in _focusNodes.values) {
-      node.dispose();
-    }
-    super.dispose();
-  }
-
-  KeyEventResult _handleKey(String resourceId, KeyEvent event) {
-    if (event is KeyDownEvent &&
-        (event.logicalKey == LogicalKeyboardKey.enter ||
-            event.logicalKey == LogicalKeyboardKey.space)) {
-      widget.onTabActivated(resourceId);
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,11 +29,11 @@ class _WorkspaceTabStripState extends State<WorkspaceTabStrip> {
       ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: widget.controller.tabs.length,
+        itemCount: controller.tabs.length,
         separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (context, index) {
-          final tab = widget.controller.tabs[index];
-          final isActive = tab.resourceId == widget.controller.activeResourceId;
+          final tab = controller.tabs[index];
+          final isActive = tab.resourceId == controller.activeResourceId;
 
           return Container(
             decoration: BoxDecoration(
@@ -78,14 +48,17 @@ class _WorkspaceTabStripState extends State<WorkspaceTabStrip> {
               children: [
                 Semantics(
                   selected: isActive,
-                  child: Focus(
-                    key: ValueKey('tab-focus-${tab.resourceId}'),
-                    focusNode: _focusNodeFor(tab.resourceId),
-                    onKeyEvent: (_, event) => _handleKey(tab.resourceId, event),
+                  child: WorkbenchFocusRing(
+                    focusKey: ValueKey('tab-focus-${tab.resourceId}'),
+                    indicatorKey: ValueKey(
+                      'tab-focus-${tab.resourceId}-indicator',
+                    ),
+                    onActivate: () => onTabActivated(tab.resourceId),
+                    borderRadius: BorderRadius.circular(7),
                     child: PushButton(
                       controlSize: ControlSize.regular,
                       semanticLabel: '激活标签页：${tab.title}',
-                      onPressed: () => widget.onTabActivated(tab.resourceId),
+                      onPressed: () => onTabActivated(tab.resourceId),
                       child: Text(tab.title),
                     ),
                   ),
@@ -93,7 +66,7 @@ class _WorkspaceTabStripState extends State<WorkspaceTabStrip> {
                 MacosIconButton(
                   icon: const Text('×'),
                   semanticLabel: '关闭标签页：${tab.title}',
-                  onPressed: () => widget.onTabClosed(tab.resourceId),
+                  onPressed: () => onTabClosed(tab.resourceId),
                 ),
               ],
             ),

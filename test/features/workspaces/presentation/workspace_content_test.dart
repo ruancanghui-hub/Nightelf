@@ -1,5 +1,9 @@
+import 'dart:ui' show Tristate;
+
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
+import 'package:ai_workbench/features/workspaces/presentation/skill_workspace.dart';
+import 'package:ai_workbench/features/workspaces/presentation/workflow_workspace.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
@@ -25,6 +29,26 @@ void main() {
     await tester.tap(navigationButton(label));
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 1));
+  }
+
+  Future<void> pumpUnboundedSurface(
+    WidgetTester tester, {
+    required double width,
+    required Widget child,
+  }) async {
+    await tester.binding.setSurfaceSize(const Size(900, 720));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MacosApp(
+        theme: MacosThemeData.dark(),
+        home: SingleChildScrollView(
+          child: Center(
+            child: SizedBox(width: width, child: child),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
   }
 
   testWidgets('prompt workspace shows a source surface and mock save state', (
@@ -125,33 +149,105 @@ void main() {
     }
   });
 
+  testWidgets('SKILL stacks at an unbounded 620 pixel effective width', (
+    tester,
+  ) async {
+    await pumpUnboundedSurface(
+      tester,
+      width: 620,
+      child: const SkillWorkspace(),
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Workflow stacks at an unbounded 670 pixel effective width', (
+    tester,
+  ) async {
+    await pumpUnboundedSurface(
+      tester,
+      width: 670,
+      child: const WorkflowWorkspace(),
+    );
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('intermediate window widths keep compact workspaces bounded', (
+    tester,
+  ) async {
+    for (final testCase in const [
+      (windowWidth: 1188.0, destination: 'SKILL 文件夹'),
+      (windowWidth: 1238.0, destination: 'Workflow 文件'),
+    ]) {
+      await tester.binding.setSurfaceSize(Size(testCase.windowWidth, 720));
+      await tester.pumpWidget(
+        MacosApp(theme: MacosThemeData.dark(), home: const WorkbenchShell()),
+      );
+      await tester.pumpAndSettle();
+      await openWorkspace(tester, testCase.destination);
+      expect(
+        tester.takeException(),
+        isNull,
+        reason: '${testCase.destination} at ${testCase.windowWidth}',
+      );
+    }
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+  });
+
   testWidgets(
     'keyboard focus reaches sidebar search tabs and inspector actions',
     (tester) async {
-      await pumpShell(tester);
+      final semantics = tester.ensureSemantics();
+      try {
+        await pumpShell(tester);
 
-      for (final key in const [
-        ValueKey('sidebar-focus-aiPrompt'),
-        ValueKey('tab-focus-prompt-release-notes'),
-        ValueKey('workspace-primary-action-focus'),
-        ValueKey('workspace-secondary-action-focus'),
-      ]) {
-        final focus = find.byKey(key);
-        expect(focus, findsOneWidget);
-        final focusWidget = tester.widget<Focus>(focus);
-        expect(focusWidget.focusNode, isNotNull);
-        focusWidget.focusNode!.requestFocus();
+        for (final key in const [
+          ValueKey('sidebar-focus-aiPrompt'),
+          ValueKey('tab-focus-prompt-release-notes'),
+          ValueKey('workspace-primary-action-focus'),
+          ValueKey('workspace-secondary-action-focus'),
+        ]) {
+          final focus = find.byKey(key);
+          expect(focus, findsOneWidget);
+          final focusWidget = tester.widget<Focus>(focus);
+          expect(focusWidget.focusNode, isNotNull);
+          focusWidget.focusNode!.requestFocus();
+          await tester.pumpAndSettle();
+          expect(
+            focusWidget.focusNode!.hasFocus,
+            isTrue,
+            reason: key.toString(),
+          );
+
+          final indicator = find.byKey(ValueKey('${key.value}-indicator'));
+          expect(indicator, findsOneWidget);
+          final decoration =
+              tester.widget<AnimatedContainer>(indicator).decoration
+                  as BoxDecoration;
+          final focusedBorder = decoration.border! as Border;
+          expect(
+            focusedBorder.top.color,
+            MacosTheme.of(tester.element(indicator)).primaryColor,
+            reason: 'visible focus ring for ${key.value}',
+          );
+          expect(
+            tester.getSemantics(indicator).flagsCollection.isFocused,
+            Tristate.isTrue,
+            reason: 'focused semantics for ${key.value}',
+          );
+        }
+
+        final search = tester.widget<MacosSearchField>(
+          find.byKey(const ValueKey('resource-search')),
+        );
+        expect(search.focusNode, isNotNull);
+        search.focusNode!.requestFocus();
         await tester.pump();
-        expect(focusWidget.focusNode!.hasFocus, isTrue, reason: key.toString());
+        expect(search.focusNode!.hasFocus, isTrue);
+      } finally {
+        semantics.dispose();
       }
-
-      final search = tester.widget<MacosSearchField>(
-        find.byKey(const ValueKey('resource-search')),
-      );
-      expect(search.focusNode, isNotNull);
-      search.focusNode!.requestFocus();
-      await tester.pump();
-      expect(search.focusNode!.hasFocus, isTrue);
     },
   );
 }
