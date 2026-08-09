@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:ai_workbench/app/theme/workbench_theme.dart';
 import 'package:ai_workbench/app/vault_providers.dart';
-import 'package:ai_workbench/features/shell/domain/workbench_resource_mapper.dart';
+import 'package:ai_workbench/features/import/presentation/open_vault_workbench.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/vault/application/vault_controller.dart';
 import 'package:ai_workbench/features/vault/application/vault_state.dart';
@@ -64,8 +64,9 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
 
   Widget _homeForState(VaultController controller, VaultState state) {
     return switch (state) {
-      VaultOpen(:final resources) => WorkbenchShell(
-        resources: resources.map(workbenchResourceFromRecord).toList(),
+      VaultOpen() => OpenVaultWorkbench(
+        vaultController: controller,
+        openState: state,
       ),
       VaultOpening() => const _StatusScaffold(message: '正在打开 Vault…'),
       VaultFailure(:final message) => _WelcomeScaffold(
