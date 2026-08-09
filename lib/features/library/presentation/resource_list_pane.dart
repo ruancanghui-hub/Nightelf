@@ -9,12 +9,14 @@ class ResourceListPane extends StatefulWidget {
     required this.controller,
     required this.onResourceSelected,
     this.onToggleFavorite,
+    this.onCreatePrompt,
     super.key,
   });
 
   final WorkbenchController controller;
   final ValueChanged<WorkbenchResource> onResourceSelected;
   final Future<void> Function(String resourceId)? onToggleFavorite;
+  final Future<void> Function()? onCreatePrompt;
 
   @override
   State<ResourceListPane> createState() => _ResourceListPaneState();
@@ -57,6 +59,18 @@ class _ResourceListPaneState extends State<ResourceListPane> {
               widget.controller.labelFor(widget.controller.selectedDestination),
               style: typography.title2,
             ),
+            if (widget.onCreatePrompt != null) ...[
+              const SizedBox(height: 8),
+              PushButton(
+                controlSize: ControlSize.large,
+                semanticLabel: '新建提示词',
+                onPressed: () => widget.onCreatePrompt!(),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('新建提示词'),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Semantics(
               label: '搜索当前分类',

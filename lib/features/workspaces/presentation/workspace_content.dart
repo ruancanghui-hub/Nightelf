@@ -5,9 +5,10 @@ import 'package:ai_workbench/features/editor/domain/document_path_resolver.dart'
 import 'package:ai_workbench/features/editor/presentation/text_editor_workspace.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/presentation/metadata_inspector.dart';
+import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
+import 'package:ai_workbench/features/prompts/presentation/prompt_workspace.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/workspaces/presentation/mcp_workspace.dart';
-import 'package:ai_workbench/features/workspaces/presentation/prompt_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/skill_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/website_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/workflow_workspace.dart';
@@ -21,6 +22,7 @@ class WorkspaceContent extends StatelessWidget {
     this.vaultRootPath,
     this.onToggleFavorite,
     this.metadataController,
+    this.promptController,
     this.allResources = const [],
     this.onOpenRelated,
     this.showInspector = true,
@@ -32,6 +34,7 @@ class WorkspaceContent extends StatelessWidget {
   final String? vaultRootPath;
   final Future<void> Function(String resourceId)? onToggleFavorite;
   final MetadataController? metadataController;
+  final PromptController? promptController;
   final List<WorkbenchResource> allResources;
   final ValueChanged<WorkbenchResource>? onOpenRelated;
   final bool showInspector;
@@ -82,7 +85,14 @@ class WorkspaceContent extends StatelessWidget {
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final surface = descriptor == null
+                  final usePromptWorkspace =
+                      resource.type == ResourceType.aiPrompt &&
+                      promptController != null &&
+                      vaultRoot != null &&
+                      resource.relativePath != null;
+                  final surface = usePromptWorkspace
+                      ? PromptWorkspace(controller: promptController)
+                      : descriptor == null
                       ? presentation.surface
                       : _LiveDocumentEditor(
                           key: ValueKey(

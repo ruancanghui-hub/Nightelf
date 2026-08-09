@@ -6,6 +6,8 @@ import 'package:ai_workbench/features/import/presentation/import_review_sheet.da
 import 'package:ai_workbench/features/import/presentation/vault_drop_target.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/data/json_metadata_repository.dart';
+import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
+import 'package:ai_workbench/features/prompts/data/file_prompt_repository.dart';
 import 'package:ai_workbench/features/shell/data/workspace_restoration_repository.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart'
     as shell;
@@ -14,6 +16,7 @@ import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/vault/application/vault_controller.dart';
 import 'package:ai_workbench/features/vault/application/vault_state.dart';
 import 'package:ai_workbench/shared/domain/resource_type.dart';
+import 'package:ai_workbench/shared/platform/flutter_clipboard_service.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -34,6 +37,7 @@ class OpenVaultWorkbench extends StatefulWidget {
 class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   late final ImportController _importController;
   late MetadataController _metadataController;
+  late PromptController _promptController;
   bool _reviewOpen = false;
   String? _bannerMessage;
   shell.ResourceType? _preferredShellType;
@@ -46,11 +50,13 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     _metadataController = _createMetadataController(
       widget.openState.handle.root,
     );
+    _promptController = _createPromptController(widget.openState.handle.root);
     _importController = ImportController(
       repository: VaultImportRepository(),
       onImported: (paths) => widget.vaultController.refreshPaths(paths),
     )..addListener(_onImportChanged);
     _metadataController.addListener(_onMetadataChanged);
+    _promptController.addListener(_onPromptChanged);
     _loadMetadata();
   }
 
@@ -62,9 +68,14 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       _metadataController
         ..removeListener(_onMetadataChanged)
         ..dispose();
+      _promptController
+        ..removeListener(_onPromptChanged)
+        ..dispose();
       _metadataController = _createMetadataController(
         widget.openState.handle.root,
       )..addListener(_onMetadataChanged);
+      _promptController = _createPromptController(widget.openState.handle.root)
+        ..addListener(_onPromptChanged);
       _loadMetadata();
     } else if (!identical(
       oldWidget.openState.resources,
@@ -79,6 +90,9 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   @override
   void dispose() {
+    _promptController
+      ..removeListener(_onPromptChanged)
+      ..dispose();
     _metadataController
       ..removeListener(_onMetadataChanged)
       ..dispose();
@@ -91,6 +105,14 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   MetadataController _createMetadataController(Directory root) {
     return MetadataController(
       repository: JsonMetadataRepository(vaultRoot: root),
+    );
+  }
+
+  PromptController _createPromptController(Directory root) {
+    return PromptController(
+      repository: FilePromptRepository(vaultRoot: root),
+      clipboard: const FlutterClipboardService(),
+      vaultRootPath: root.path,
     );
   }
 
@@ -111,6 +133,12 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     );
   }
 
+  void _onPromptChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Future<void> _loadMetadata() async {
     await _metadataController.load();
     if (!mounted) {
@@ -124,6 +152,15 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   Future<void> _toggleFavorite(String resourceId) async {
     await _metadataController.toggleFavorite(resourceId);
+  }
+
+  Future<void> _createPrompt() async {
+    final created = await _promptController.create(
+      title: '未命名提示词',
+      body: '# 新提示词\n\n',
+    );
+    await widget.vaultController.refreshPaths([created.relativePath]);
+    setState(() => _bannerMessage = '已创建提示词');
   }
 
   ResourceType? get _preferredVaultType {
@@ -178,12 +215,12 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                   resources: resources,
                   vaultRootPath: widget.openState.handle.root.path,
                   onDestinationChanged: (type) {
-                    // Avoid rebuilding resources on every sidebar tap; that used
-                    // to race replaceResources and snap the destination back.
                     _preferredShellType = type;
                   },
                   onToggleFavorite: _toggleFavorite,
                   metadataController: _metadataController,
+                  promptController: _promptController,
+                  onCreatePrompt: _createPrompt,
                   restorationRepository: WorkspaceRestorationRepository(
                     vaultRoot: widget.openState.handle.root,
                   ),

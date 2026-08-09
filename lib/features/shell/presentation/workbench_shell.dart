@@ -3,6 +3,7 @@ import 'package:ai_workbench/features/library/presentation/resource_list_pane.da
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/domain/resource_metadata.dart';
 import 'package:ai_workbench/features/metadata/presentation/collection_editor_sheet.dart';
+import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
 import 'package:ai_workbench/features/shell/application/workbench_controller.dart';
 import 'package:ai_workbench/features/shell/application/workbench_intents.dart';
 import 'package:ai_workbench/features/shell/application/workbench_shortcuts.dart';
@@ -27,7 +28,9 @@ class WorkbenchShell extends StatefulWidget {
     this.vaultRootPath,
     this.onToggleFavorite,
     this.metadataController,
+    this.promptController,
     this.restorationRepository,
+    this.onCreatePrompt,
   });
 
   final List<WorkbenchResource>? resources;
@@ -35,7 +38,9 @@ class WorkbenchShell extends StatefulWidget {
   final String? vaultRootPath;
   final Future<void> Function(String resourceId)? onToggleFavorite;
   final MetadataController? metadataController;
+  final PromptController? promptController;
   final WorkspaceRestorationRepository? restorationRepository;
+  final Future<void> Function()? onCreatePrompt;
 
   @override
   State<WorkbenchShell> createState() => WorkbenchShellState();
@@ -247,6 +252,12 @@ class WorkbenchShellState extends State<WorkbenchShell> {
       setState(() => _isPaletteOpen = false);
     }
     await widget.metadataController?.recordRecent(resource.id);
+    final relativePath = resource.relativePath;
+    if (resource.type == ResourceType.aiPrompt &&
+        relativePath != null &&
+        widget.promptController != null) {
+      await widget.promptController!.open(relativePath);
+    }
   }
 
   void _activateTab(String resourceId) {
@@ -429,6 +440,11 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                         onResourceSelected: _openResource,
                                         onToggleFavorite:
                                             widget.onToggleFavorite,
+                                        onCreatePrompt:
+                                            _controller.selectedDestination ==
+                                                ResourceType.aiPrompt
+                                            ? widget.onCreatePrompt
+                                            : null,
                                       ),
                                       Expanded(
                                         child: Column(
@@ -446,6 +462,8 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                 onToggleFavorite:
                                                     widget.onToggleFavorite,
                                                 metadataController: metadata,
+                                                promptController:
+                                                    widget.promptController,
                                                 allResources:
                                                     _controller.allResources,
                                                 onOpenRelated: _openResource,
