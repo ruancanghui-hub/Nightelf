@@ -1,4 +1,5 @@
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
+import 'package:ai_workbench/features/shell/presentation/emerald_interactive_surface.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -152,62 +153,71 @@ class EmeraldOverviewDashboard extends StatelessWidget {
   }) => Semantics(
     button: true,
     label: '筛选：$label',
-    child: GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF123F32) : const Color(0xFF081410),
-          border: Border.all(
-            color: selected ? _emerald : const Color(0xFF16352B),
+    child: MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF123F32) : const Color(0xFF081410),
+            border: Border.all(
+              color: selected ? _emerald : const Color(0xFF16352B),
+            ),
+            borderRadius: BorderRadius.circular(18),
           ),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(color: selected ? _emerald : _muted, fontSize: 12),
+          child: Text(
+            label,
+            style: TextStyle(color: selected ? _emerald : _muted, fontSize: 12),
+          ),
         ),
       ),
     ),
   );
 
-  Widget _resourceRow(WorkbenchResource resource) => Semantics(
-    button: true,
-    label: '打开 ${resource.title}',
-    child: GestureDetector(
-      onTap: () => onResourceSelected(resource),
-      child: Container(
+  Widget _resourceRow(WorkbenchResource resource) => Padding(
+    padding: const EdgeInsets.only(bottom: 2),
+    child: Semantics(
+      button: true,
+      label: '打开 ${resource.title}',
+      child: EmeraldInteractiveSurface(
+        onTap: () => onResourceSelected(resource),
+        borderRadius: BorderRadius.circular(8),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
         height: 48,
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFF123127))),
-        ),
-        child: Row(
-          children: [
-            Icon(_iconFor(resource.type), color: _emerald, size: 18),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                resource.title,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFFE3F3EA), fontSize: 14),
+        showSelectedBorder: false,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFF123127))),
+          ),
+          child: Row(
+            children: [
+              Icon(_iconFor(resource.type), color: _emerald, size: 18),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  resource.title,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Color(0xFFE3F3EA), fontSize: 14),
+                ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0B211A),
-                borderRadius: BorderRadius.circular(6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B211A),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  labelFor(resource.type),
+                  style: const TextStyle(color: _muted, fontSize: 11),
+                ),
               ),
-              child: Text(
-                labelFor(resource.type),
-                style: const TextStyle(color: _muted, fontSize: 11),
-              ),
-            ),
-            const SizedBox(width: 16),
-            const Text('刚刚', style: TextStyle(color: _muted, fontSize: 12)),
-            const SizedBox(width: 10),
-            const Icon(LucideIcons.ellipsis, color: _muted, size: 17),
-          ],
+              const SizedBox(width: 16),
+              const Text('刚刚', style: TextStyle(color: _muted, fontSize: 12)),
+              const SizedBox(width: 10),
+              const Icon(LucideIcons.ellipsis, color: _muted, size: 17),
+            ],
+          ),
         ),
       ),
     ),

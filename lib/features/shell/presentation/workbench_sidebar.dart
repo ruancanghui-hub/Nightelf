@@ -1,5 +1,6 @@
 import 'package:ai_workbench/features/shell/application/workbench_controller.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
+import 'package:ai_workbench/features/shell/presentation/emerald_interactive_surface.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_focus_ring.dart';
 import 'package:flutter/widgets.dart';
 import 'package:hugeicons/hugeicons.dart';
@@ -52,7 +53,6 @@ class WorkbenchSidebar extends StatelessWidget {
     required bool selected,
     required bool compact,
   }) {
-    const accent = Color(0xFF5DE7A7);
     return SizedBox(
       height: 36,
       child: Stack(
@@ -72,35 +72,24 @@ class WorkbenchSidebar extends StatelessWidget {
             button: true,
             enabled: onPressed != null,
             label: semanticLabel,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
+            child: EmeraldInteractiveSurface(
               onTap: onPressed,
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0xFF0C2B23)
-                      : const Color(0x00000000),
-                  border: Border.all(
-                    color: selected ? accent : const Color(0x00000000),
+              selected: selected,
+              padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: DefaultTextStyle(
+                  style: const TextStyle(
+                    color: Color(0xFFE1F1EA),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                   ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: DefaultTextStyle(
-                    style: const TextStyle(
-                      color: Color(0xFFE1F1EA),
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
+                  child: IconTheme(
+                    data: const IconThemeData(
+                      color: Color(0xFF9FC1B4),
+                      size: 17,
                     ),
-                    child: IconTheme(
-                      data: const IconThemeData(
-                        color: Color(0xFF9FC1B4),
-                        size: 17,
-                      ),
-                      child: visual,
-                    ),
+                    child: visual,
                   ),
                 ),
               ),
@@ -454,7 +443,7 @@ String formatRelativeOpenedAt(DateTime? openedAt, {DateTime? now}) {
   return '${local.month}/${local.day}';
 }
 
-class _SidebarRecentTile extends StatefulWidget {
+class _SidebarRecentTile extends StatelessWidget {
   const _SidebarRecentTile({
     required this.resource,
     required this.relativeTime,
@@ -471,96 +460,50 @@ class _SidebarRecentTile extends StatefulWidget {
   final bool dense;
 
   @override
-  State<_SidebarRecentTile> createState() => _SidebarRecentTileState();
-}
-
-class _SidebarRecentTileState extends State<_SidebarRecentTile> {
-  var _hovered = false;
-  var _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    const accent = Color(0xFF5DE7A7);
-    final selected = widget.selected;
-    final background = selected
-        ? const Color(0xFF0C2B23)
-        : _pressed
-        ? accent.withValues(alpha: 0.16)
-        : _hovered
-        ? accent.withValues(alpha: 0.10)
-        : const Color(0x00000000);
-    final borderColor = selected || _pressed
-        ? accent.withValues(alpha: selected ? 1 : 0.55)
-        : const Color(0x00000000);
-
     return Padding(
-      padding: EdgeInsets.only(bottom: widget.dense ? 2 : 4),
-      child: MouseRegion(
-        cursor: widget.onTap == null
-            ? SystemMouseCursors.basic
-            : SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() {
-          _hovered = false;
-          _pressed = false;
-        }),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTapDown: widget.onTap == null
-              ? null
-              : (_) => setState(() => _pressed = true),
-          onTapCancel: () => setState(() => _pressed = false),
-          onTapUp: (_) => setState(() => _pressed = false),
-          onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 90),
-            curve: Curves.easeOut,
-            padding: EdgeInsets.symmetric(
-              horizontal: widget.dense ? 6 : 8,
-              vertical: widget.dense ? 6 : 7,
-            ),
-            decoration: BoxDecoration(
-              color: background,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: borderColor),
-            ),
-            child: Semantics(
-              button: true,
-              selected: selected,
-              label: '最近打开：${widget.resource.title}',
-              child: Row(
-                children: [
-                  Icon(
-                    WorkbenchSidebar.iconFor(widget.resource.type),
-                    size: 15,
-                    color: const Color(0xFF9FC1B4),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      widget.resource.title,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: const Color(0xFFE1F1EA),
-                        fontSize: 13,
-                        fontWeight: selected || _pressed
-                            ? FontWeight.w600
-                            : FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    widget.relativeTime,
-                    style: const TextStyle(
-                      color: Color(0xFF7F9A90),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
+      padding: EdgeInsets.only(bottom: dense ? 2 : 4),
+      child: EmeraldInteractiveSurface(
+        onTap: onTap,
+        selected: selected,
+        borderRadius: BorderRadius.circular(6),
+        padding: EdgeInsets.symmetric(
+          horizontal: dense ? 6 : 8,
+          vertical: dense ? 6 : 7,
+        ),
+        child: Semantics(
+          button: true,
+          selected: selected,
+          label: '最近打开：${resource.title}',
+          child: Row(
+            children: [
+              Icon(
+                WorkbenchSidebar.iconFor(resource.type),
+                size: 15,
+                color: const Color(0xFF9FC1B4),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  resource.title,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: const Color(0xFFE1F1EA),
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                relativeTime,
+                style: const TextStyle(
+                  color: Color(0xFF7F9A90),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
           ),
         ),
       ),
