@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:ui' show SemanticsFlag;
 
 import 'package:ai_workbench/features/import/application/import_controller.dart';
 import 'package:ai_workbench/features/import/data/vault_import_repository.dart';
@@ -9,6 +8,7 @@ import 'package:ai_workbench/features/import/presentation/import_review_sheet.da
 import 'package:ai_workbench/features/vault/domain/vault_handle.dart';
 import 'package:ai_workbench/features/vault/domain/vault_manifest.dart';
 import 'package:ai_workbench/shared/domain/resource_type.dart';
+import 'package:ai_workbench/shared/ui/workbench_button.dart';
 import 'package:ai_workbench/shared/ui/workbench_shad_scope.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,9 +18,7 @@ void main() {
   testWidgets(
     'wide review keeps source and editable configuration side by side',
     (tester) async {
-      final fixture = await _ReviewFixture.create(
-        selectedType: ResourceType.mcp,
-      );
+      final fixture = _ReviewFixture.create(selectedType: ResourceType.mcp);
       addTearDown(fixture.dispose);
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1;
@@ -66,7 +64,7 @@ void main() {
   testWidgets('compact review stacks panes and preserves primary actions', (
     tester,
   ) async {
-    final fixture = await _ReviewFixture.create(selectedType: ResourceType.mcp);
+    final fixture = _ReviewFixture.create(selectedType: ResourceType.mcp);
     addTearDown(fixture.dispose);
     tester.view.physicalSize = const Size(720, 780);
     tester.view.devicePixelRatio = 1;
@@ -90,7 +88,7 @@ void main() {
   testWidgets('unknown input requires type selection before confirmation', (
     tester,
   ) async {
-    final fixture = await _ReviewFixture.create(selectedType: null);
+    final fixture = _ReviewFixture.create(selectedType: null);
     addTearDown(fixture.dispose);
 
     await fixture.pump(tester);
@@ -99,9 +97,9 @@ void main() {
     expect(find.text('请为所有选中项选择资源类型后再导入'), findsOneWidget);
     expect(
       tester
-          .getSemantics(find.bySemanticsLabel('复制到 Vault'))
-          .hasFlag(SemanticsFlag.isEnabled),
-      isFalse,
+          .widget<WorkbenchButton>(find.byKey(const Key('import-copy-button')))
+          .onPressed,
+      isNull,
     );
   });
 }
@@ -117,12 +115,10 @@ class _ReviewFixture {
   final VaultHandle vault;
   final Directory root;
 
-  static Future<_ReviewFixture> create({
-    required ResourceType? selectedType,
-  }) async {
-    final root = await Directory.systemTemp.createTemp('nightelf-review-');
+  static _ReviewFixture create({required ResourceType? selectedType}) {
+    final root = Directory.systemTemp.createTempSync('nightelf-review-');
     final source = File('${root.path}/mcp.json');
-    await source.writeAsString('''{
+    source.writeAsStringSync('''{
   "mcpServers": {
     "example": {
       "command": "node",
@@ -168,13 +164,12 @@ class _ReviewFixture {
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
   }
 
-  Future<void> dispose() async {
+  void dispose() {
     controller.dispose();
-    if (await root.exists()) {
-      await root.delete(recursive: true);
+    if (root.existsSync()) {
+      root.deleteSync(recursive: true);
     }
   }
 }
