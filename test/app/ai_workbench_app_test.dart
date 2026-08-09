@@ -13,7 +13,8 @@ void main() {
         child: AiWorkbenchApp(hasVault: true, skipRestore: true),
       ),
     );
-    await tester.pump(Duration.zero);
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
 
     expect(
       tester.widget<MacosApp>(find.byType(MacosApp)).title,
@@ -42,11 +43,45 @@ void main() {
     await tester.pumpWidget(
       const ProviderScope(child: AiWorkbenchApp(skipRestore: true)),
     );
+    await tester.pump(const Duration(milliseconds: 900));
     await tester.pumpAndSettle();
 
     expect(find.text('开启你的绿光工作台'), findsOneWidget);
+    final logo = tester.widget<Image>(
+      find.byKey(const ValueKey('nightelf-welcome-logo')),
+    );
+    expect((logo.image as AssetImage).assetName, 'assets/nightelf-logo.png');
+    expect(logo.width, 96);
+    expect(logo.height, 96);
+    expect(logo.fit, BoxFit.contain);
     expect(find.text('创建 Vault'), findsOneWidget);
     expect(find.text('打开 Vault'), findsOneWidget);
+  });
+
+  testWidgets('shows the Nightelf splash for 900 ms before the app home', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const ProviderScope(child: AiWorkbenchApp(skipRestore: true)),
+    );
+
+    expect(
+      find.byKey(const ValueKey('nightelf-splash-screen')),
+      findsOneWidget,
+    );
+    expect(find.text('创建 Vault'), findsNothing);
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 899));
+    expect(
+      find.byKey(const ValueKey('nightelf-splash-screen')),
+      findsOneWidget,
+    );
+
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('nightelf-splash-screen')), findsNothing);
+    expect(find.text('创建 Vault'), findsOneWidget);
   });
 
   testWidgets('can render with the light workbench theme', (tester) async {
@@ -59,7 +94,8 @@ void main() {
         ),
       ),
     );
-    await tester.pump(Duration.zero);
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
 
     expect(find.text('Nightelf · AI 工作台'), findsOneWidget);
   });

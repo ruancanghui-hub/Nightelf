@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:ai_workbench/app/theme/workbench_theme.dart';
+import 'package:ai_workbench/app/nightelf_splash_screen.dart';
 import 'package:ai_workbench/app/vault_providers.dart';
 import 'package:ai_workbench/features/import/presentation/open_vault_workbench.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
@@ -12,7 +13,6 @@ import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 import 'package:path/path.dart' as p;
 
@@ -39,6 +39,7 @@ class AiWorkbenchApp extends ConsumerStatefulWidget {
 class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
   late final DirectoryPickerService _directoryPicker;
   var _pickingDirectory = false;
+  var _showSplash = true;
 
   @override
   void initState() {
@@ -62,7 +63,15 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
       themeMode: widget.themeMode,
       theme: WorkbenchTheme.light(),
       darkTheme: WorkbenchTheme.dark(),
-      home: widget.hasVault
+      home: _showSplash
+          ? NightelfSplashScreen(
+              onFinished: () {
+                if (mounted) {
+                  setState(() => _showSplash = false);
+                }
+              },
+            )
+          : widget.hasVault
           ? const WorkbenchShell()
           : ListenableBuilder(
               listenable: controller,
@@ -213,10 +222,13 @@ class _WelcomeScaffold extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      LucideIcons.leafyGreen,
-                      color: Color(0xFF5DE7A7),
-                      size: 48,
+                    Image.asset(
+                      'assets/nightelf-logo.png',
+                      key: const ValueKey('nightelf-welcome-logo'),
+                      width: 96,
+                      height: 96,
+                      fit: BoxFit.contain,
+                      semanticLabel: 'Nightelf Logo',
                     ),
                     const SizedBox(height: 18),
                     const Text(
