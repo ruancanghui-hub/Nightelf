@@ -7,7 +7,8 @@ void main() {
     await tester.pumpWidget(
       const ProviderScope(child: AiWorkbenchApp(skipRestore: true)),
     );
-    await tester.pump(Duration.zero);
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
 
     expect(find.text('开启你的绿光工作台'), findsOneWidget);
     expect(find.text('创建 Vault'), findsOneWidget);
