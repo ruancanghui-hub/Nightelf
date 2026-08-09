@@ -1,0 +1,204 @@
+import 'dart:io';
+
+import 'package:ai_workbench/features/links/data/link_repository.dart';
+import 'package:ai_workbench/features/links/domain/link_document.dart';
+import 'package:ai_workbench/features/links/domain/link_validation.dart';
+import 'package:ai_workbench/shared/platform/clipboard_service.dart';
+import 'package:ai_workbench/shared/platform/system_open_service.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+
+class LinkController extends ChangeNotifier {
+  LinkController({
+    required LinkRepository repository,
+    required ClipboardService clipboard,
+    required SystemOpenService systemOpen,
+    required String vaultRootPath,
+    LinkValidation? validation,
+  }) : _repository = repository,
+       _clipboard = clipboard,
+       _systemOpen = systemOpen,
+       _vaultRootPath = vaultRootPath,
+       _validation = validation ?? const LinkValidation();
+
+  final LinkRepository _repository;
+  final ClipboardService _clipboard;
+  final SystemOpenService _systemOpen;
+  final String _vaultRootPath;
+  final LinkValidation _validation;
+
+  LinkDocument? _document;
+  String? _draftUrl;
+  String? _draftNotes;
+  String? _lastTrashPath;
+  String? _statusMessage;
+  String? _errorMessage;
+
+  LinkDocument? get document => _document;
+  String get draftUrl => _draftUrl ?? _document?.uri.toString() ?? '';
+  String get draftNotes => _draftNotes ?? _document?.notes ?? '';
+  String? get lastTrashPath => _lastTrashPath;
+  String? get statusMessage => _statusMessage;
+  String? get errorMessage => _errorMessage;
+
+  Future<void> open(String relativePath) async {
+    _document = await _repository.read(relativePath);
+    _draftUrl = _document!.uri.toString();
+    _draftNotes = _document!.notes;
+    _statusMessage = null;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  Future<LinkDocument> create({
+    required String title,
+    required String url,
+    String description = '',
+    List<String> tags = const [],
+    String notes = '',
+  }) async {
+    final validated = _validation.validate(url);
+    if (!validated.isValid) {
+      _errorMessage = validated.error;
+      notifyListeners();
+      throw StateError(validated.error!);
+    }
+    final created = await _repository.create(
+      title: title,
+      uri: validated.uri!,
+      description: description,
+      tags: tags,
+      notes: notes,
+    );
+    await open(created.relativePath);
+    _statusMessage = '已创建网站链接';
+    notifyListeners();
+    return created;
+  }
+
+  Future<LinkDocument> createFromClipboard() async {
+    final text = await _clipboard.readText();
+    if (text == null || text.trim().isEmpty) {
+      _errorMessage = '剪贴板中没有可识别的链接';
+      notifyListeners();
+      throw StateError(_errorMessage!);
+    }
+    final validated = _validation.validate(text);
+    if (!validated.isValid) {
+      _errorMessage = validated.error;
+      notifyListeners();
+      throw StateError(validated.error!);
+    }
+    final uri = validated.uri!;
+    final title = uri.host.isEmpty ? '未命名链接' : uri.host;
+    return create(title: title, url: uri.toString());
+  }
+
+  void updateDraftUrl(String value) {
+    _draftUrl = value;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  void updateDraftNotes(String value) {
+    _draftNotes = value;
+    notifyListeners();
+  }
+
+  Future<void> save() async {
+    final document = _requireDocument();
+    final validated = _validation.validate(draftUrl);
+    if (!validated.isValid) {
+      _errorMessage = validated.error;
+      notifyListeners();
+      return;
+    }
+    _document = await _repository.save(
+      document.copyWith(uri: validated.uri!, notes: draftNotes),
+    );
+    _draftUrl = _document!.uri.toString();
+    _draftNotes = _document!.notes;
+    _errorMessage = null;
+    _statusMessage = '已保存';
+    notifyListeners();
+  }
+
+  Future<void> copyUrl() async {
+    final document = _requireDocument();
+    final url = draftUrl.trim().isEmpty ? document.uri.toString() : draftUrl;
+    final validated = _validation.validate(url);
+    if (!validated.isValid) {
+      _errorMessage = validated.error;
+      notifyListeners();
+      return;
+    }
+    await _clipboard.writeText(validated.uri!.toString());
+    _statusMessage = '已复制链接';
+    notifyListeners();
+  }
+
+  Future<void> openExternally() async {
+    final document = _requireDocument();
+    final url = draftUrl.trim().isEmpty ? document.uri.toString() : draftUrl;
+    final validated = _validation.validate(url);
+    if (!validated.isValid) {
+      _errorMessage = validated.error;
+      notifyListeners();
+      return;
+    }
+    await _systemOpen.openExternalUrl(validated.uri!);
+    _statusMessage = '已在外部浏览器打开';
+    notifyListeners();
+  }
+
+  Future<LinkDocument> duplicate() async {
+    final document = _requireDocument();
+    await save();
+    final duplicated = await _repository.duplicate(document.relativePath);
+    await open(duplicated.relativePath);
+    _statusMessage = '已创建副本';
+    notifyListeners();
+    return duplicated;
+  }
+
+  Future<String> moveToTrash() async {
+    final document = _requireDocument();
+    final trashPath = await _repository.moveToTrash(document.relativePath);
+    _document = null;
+    _draftUrl = null;
+    _draftNotes = null;
+    _lastTrashPath = trashPath;
+    _statusMessage = '已移到回收站';
+    notifyListeners();
+    return trashPath;
+  }
+
+  Future<LinkDocument> undoTrash() async {
+    final trashPath = _lastTrashPath;
+    if (trashPath == null) {
+      throw StateError('没有可撤销的回收记录');
+    }
+    final linksIndex = trashPath.indexOf('/links/');
+    if (linksIndex < 0) {
+      throw StateError('无法解析回收路径：$trashPath');
+    }
+    final restoredRelative = trashPath.substring(linksIndex + 1);
+    final source = File(p.join(_vaultRootPath, trashPath));
+    final destination = File(p.join(_vaultRootPath, restoredRelative));
+    await destination.parent.create(recursive: true);
+    await source.rename(destination.path);
+    _lastTrashPath = null;
+    await open(restoredRelative);
+    _statusMessage = '已撤销回收';
+    notifyListeners();
+    return _document!;
+  }
+
+  LinkDocument _requireDocument() {
+    final document = _document;
+    if (document == null) {
+      throw StateError('尚未打开网站链接');
+    }
+    return document;
+  }
+}

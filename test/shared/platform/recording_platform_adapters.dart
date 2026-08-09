@@ -53,9 +53,15 @@ class RecordingSystemOpenService implements SystemOpenService {
 
 class RecordingClipboardService implements ClipboardService {
   final List<String> texts = [];
+  String? nextReadText;
 
   @override
   Future<void> writeText(String text) async {
     texts.add(text);
+  }
+
+  @override
+  Future<String?> readText() async {
+    return nextReadText;
   }
 }

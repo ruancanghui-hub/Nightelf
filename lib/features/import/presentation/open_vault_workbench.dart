@@ -5,8 +5,12 @@ import 'package:ai_workbench/features/import/application/import_controller.dart'
 import 'package:ai_workbench/features/import/data/vault_import_repository.dart';
 import 'package:ai_workbench/features/import/presentation/import_review_sheet.dart';
 import 'package:ai_workbench/features/import/presentation/vault_drop_target.dart';
+import 'package:ai_workbench/features/links/application/link_controller.dart';
+import 'package:ai_workbench/features/links/data/file_link_repository.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/data/json_metadata_repository.dart';
+import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
+import 'package:ai_workbench/features/mcp/data/file_mcp_repository.dart';
 import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
 import 'package:ai_workbench/features/prompts/data/file_prompt_repository.dart';
 import 'package:ai_workbench/features/shell/data/workspace_restoration_repository.dart';
@@ -16,8 +20,6 @@ import 'package:ai_workbench/features/shell/domain/workbench_resource_mapper.dar
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/skills/application/skill_controller.dart';
 import 'package:ai_workbench/features/skills/data/file_skill_repository.dart';
-import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
-import 'package:ai_workbench/features/mcp/data/file_mcp_repository.dart';
 import 'package:ai_workbench/features/vault/application/vault_controller.dart';
 import 'package:ai_workbench/features/vault/application/vault_state.dart';
 import 'package:ai_workbench/shared/domain/resource_type.dart';
@@ -47,6 +49,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   late PromptController _promptController;
   late SkillController _skillController;
   late McpController _mcpController;
+  late LinkController _linkController;
   bool _reviewOpen = false;
   String? _bannerMessage;
   shell.ResourceType? _preferredShellType;
@@ -62,6 +65,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     _promptController = _createPromptController(widget.openState.handle.root);
     _skillController = _createSkillController(widget.openState.handle.root);
     _mcpController = _createMcpController(widget.openState.handle.root);
+    _linkController = _createLinkController(widget.openState.handle.root);
     _importController = ImportController(
       repository: VaultImportRepository(),
       onImported: (paths) => widget.vaultController.refreshPaths(paths),
@@ -70,6 +74,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     _promptController.addListener(_onPromptChanged);
     _skillController.addListener(_onSkillChanged);
     _mcpController.addListener(_onMcpChanged);
+    _linkController.addListener(_onLinkChanged);
     _loadMetadata();
   }
 
@@ -90,6 +95,9 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       _mcpController
         ..removeListener(_onMcpChanged)
         ..dispose();
+      _linkController
+        ..removeListener(_onLinkChanged)
+        ..dispose();
       _metadataController = _createMetadataController(
         widget.openState.handle.root,
       )..addListener(_onMetadataChanged);
@@ -99,6 +107,8 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
         ..addListener(_onSkillChanged);
       _mcpController = _createMcpController(widget.openState.handle.root)
         ..addListener(_onMcpChanged);
+      _linkController = _createLinkController(widget.openState.handle.root)
+        ..addListener(_onLinkChanged);
       _loadMetadata();
     } else if (!identical(
       oldWidget.openState.resources,
@@ -113,6 +123,9 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   @override
   void dispose() {
+    _linkController
+      ..removeListener(_onLinkChanged)
+      ..dispose();
     _mcpController
       ..removeListener(_onMcpChanged)
       ..dispose();
@@ -162,6 +175,15 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     );
   }
 
+  LinkController _createLinkController(Directory root) {
+    return LinkController(
+      repository: FileLinkRepository(vaultRoot: root),
+      clipboard: const FlutterClipboardService(),
+      systemOpen: MacosSystemOpenService(),
+      vaultRootPath: root.path,
+    );
+  }
+
   void _onImportChanged() {
     if (mounted) {
       setState(() {});
@@ -197,6 +219,12 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     }
   }
 
+  void _onLinkChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Future<void> _loadMetadata() async {
     await _metadataController.load();
     if (!mounted) {
@@ -212,29 +240,47 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     await _metadataController.toggleFavorite(resourceId);
   }
 
+  Future<void> _openCreated(String relativePath, String message) async {
+    await widget.vaultController.refreshPaths({relativePath});
+    if (!mounted) {
+      return;
+    }
+    setState(() => _bannerMessage = message);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        _shellKey.currentState?.openByRelativePath(relativePath) ??
+            Future<void>.value(),
+      );
+    });
+  }
+
   Future<void> _createPrompt() async {
     try {
       final created = await _promptController.create(
         title: '未命名提示词',
         body: '# 新提示词\n\n在此粘贴或编写内容。\n',
       );
-      await widget.vaultController.refreshPaths({created.relativePath});
-      if (!mounted) {
-        return;
-      }
-      setState(() => _bannerMessage = '已新建提示词，可直接编辑或粘贴内容');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        unawaited(
-          _shellKey.currentState?.openByRelativePath(created.relativePath) ??
-              Future<void>.value(),
-        );
-      });
+      await _openCreated(created.relativePath, '已新建提示词，可修改标题并粘贴内容');
     } on Object catch (error) {
       if (!mounted) {
         return;
       }
       setState(() => _bannerMessage = '新建失败：$error');
     }
+  }
+
+  Future<void> _onPromptRenamed(String relativePath) async {
+    await widget.vaultController.refreshPaths({relativePath});
+    if (!mounted) {
+      return;
+    }
+    setState(() => _bannerMessage = '已更新提示词标题');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        _shellKey.currentState?.openByRelativePath(relativePath) ??
+            Future<void>.value(),
+      );
+    });
   }
 
   Future<void> _duplicatePrompt(shell.WorkbenchResource resource) async {
@@ -245,17 +291,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     try {
       await _promptController.open(relativePath);
       final duplicated = await _promptController.duplicate();
-      await widget.vaultController.refreshPaths({duplicated.relativePath});
-      if (!mounted) {
-        return;
-      }
-      setState(() => _bannerMessage = '已复制文件：${duplicated.title}');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        unawaited(
-          _shellKey.currentState?.openByRelativePath(duplicated.relativePath) ??
-              Future<void>.value(),
-        );
-      });
+      await _openCreated(duplicated.relativePath, '已复制文件：${duplicated.title}');
     } on Object catch (error) {
       if (!mounted) {
         return;
@@ -275,19 +311,10 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       final imported = await _skillController.importDirectory(
         Directory(selected),
       );
-      await widget.vaultController.refreshPaths({imported.relativeDirectory});
-      if (!mounted) {
-        return;
-      }
-      setState(() => _bannerMessage = '已导入 SKILL：${imported.title}');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        unawaited(
-          _shellKey.currentState?.openByRelativePath(
-                imported.relativeDirectory,
-              ) ??
-              Future<void>.value(),
-        );
-      });
+      await _openCreated(
+        imported.relativeDirectory,
+        '已导入 SKILL：${imported.title}',
+      );
     } on Object catch (error) {
       if (!mounted) {
         return;
@@ -302,22 +329,39 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
         title: '未命名 MCP',
         jsonText: '{\n  "mcpServers": {}\n}\n',
       );
-      await widget.vaultController.refreshPaths({created.relativePath});
-      if (!mounted) {
-        return;
-      }
-      setState(() => _bannerMessage = '已新建 MCP 配置');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        unawaited(
-          _shellKey.currentState?.openByRelativePath(created.relativePath) ??
-              Future<void>.value(),
-        );
-      });
+      await _openCreated(created.relativePath, '已新建 MCP 配置');
     } on Object catch (error) {
       if (!mounted) {
         return;
       }
       setState(() => _bannerMessage = '新建 MCP 失败：$error');
+    }
+  }
+
+  Future<void> _createLink() async {
+    try {
+      final created = await _linkController.create(
+        title: '未命名链接',
+        url: 'https://example.com',
+      );
+      await _openCreated(created.relativePath, '已新建网站链接，可修改地址');
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '新建链接失败：$error');
+    }
+  }
+
+  Future<void> _pasteLink() async {
+    try {
+      final created = await _linkController.createFromClipboard();
+      await _openCreated(created.relativePath, '已识别并保存链接：${created.uri}');
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '粘贴链接失败：$error');
     }
   }
 
@@ -380,10 +424,14 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                   promptController: _promptController,
                   skillController: _skillController,
                   mcpController: _mcpController,
+                  linkController: _linkController,
                   onCreatePrompt: _createPrompt,
                   onDuplicatePrompt: _duplicatePrompt,
                   onImportSkill: _importSkill,
                   onCreateMcp: _createMcp,
+                  onCreateLink: _createLink,
+                  onPasteLink: _pasteLink,
+                  onPromptRenamed: _onPromptRenamed,
                   restorationRepository: WorkspaceRestorationRepository(
                     vaultRoot: widget.openState.handle.root,
                   ),

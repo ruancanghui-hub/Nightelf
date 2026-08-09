@@ -1,4 +1,3 @@
-import 'package:ai_workbench/features/editor/application/document_session.dart';
 import 'package:ai_workbench/features/editor/presentation/text_editor_workspace.dart';
 import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
 import 'package:flutter/widgets.dart';
@@ -6,10 +5,16 @@ import 'package:macos_ui/macos_ui.dart';
 
 /// Prompt workspace with copy/duplicate/trash actions over a live editor.
 class PromptWorkspace extends StatelessWidget {
-  const PromptWorkspace({super.key, this.controller, this.fallback});
+  const PromptWorkspace({
+    super.key,
+    this.controller,
+    this.fallback,
+    this.onRenamed,
+  });
 
   final PromptController? controller;
   final Widget? fallback;
+  final Future<void> Function(String relativePath)? onRenamed;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +33,7 @@ class PromptWorkspace extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _PromptTitleBar(controller: controller, onRenamed: onRenamed),
             _PromptActionsBar(controller: controller),
             Expanded(
               child: TextEditorWorkspace(session: session, title: '提示词源码'),
@@ -35,6 +41,89 @@ class PromptWorkspace extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _PromptTitleBar extends StatefulWidget {
+  const _PromptTitleBar({required this.controller, this.onRenamed});
+
+  final PromptController controller;
+  final Future<void> Function(String relativePath)? onRenamed;
+
+  @override
+  State<_PromptTitleBar> createState() => _PromptTitleBarState();
+}
+
+class _PromptTitleBarState extends State<_PromptTitleBar> {
+  late final TextEditingController _titleController;
+  String? _boundDocumentId;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(
+      text: widget.controller.document?.title ?? '',
+    );
+    _boundDocumentId = widget.controller.document?.id;
+  }
+
+  @override
+  void didUpdateWidget(covariant _PromptTitleBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final document = widget.controller.document;
+    if (document != null && document.id != _boundDocumentId) {
+      _boundDocumentId = document.id;
+      _titleController.text = document.title;
+    } else if (document != null &&
+        _titleController.text != document.title &&
+        !_titleController.value.composing.isValid) {
+      // Keep field in sync after external rename/save when not composing.
+      if (!_titleController.selection.isValid ||
+          _titleController.selection.baseOffset ==
+              _titleController.text.length) {
+        _titleController.text = document.title;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveTitle() async {
+    final renamed = await widget.controller.rename(_titleController.text);
+    await widget.onRenamed?.call(renamed.relativePath);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              label: '提示词标题',
+              textField: true,
+              child: MacosTextField(
+                controller: _titleController,
+                placeholder: '输入标题',
+                onSubmitted: (_) => _saveTitle(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          PushButton(
+            controlSize: ControlSize.small,
+            semanticLabel: '保存标题',
+            onPressed: widget.controller.document == null ? null : _saveTitle,
+            child: const Text('保存标题'),
+          ),
+        ],
+      ),
     );
   }
 }

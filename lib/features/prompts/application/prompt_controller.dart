@@ -102,6 +102,29 @@ class PromptController extends ChangeNotifier {
     return duplicated;
   }
 
+  Future<PromptDocument> rename(String title) async {
+    final document = _requireDocument();
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('标题不能为空');
+    }
+    if (_session?.state.isDirty ?? false) {
+      await _session!.saveNow();
+    }
+    final body = _session == null
+        ? document.body
+        : _bodyFromEditorText(_session!.text, fallback: document.body);
+    final renamed = await _repository.rename(
+      document.relativePath,
+      title: trimmed,
+      body: body,
+    );
+    await open(renamed.relativePath);
+    _statusMessage = '已更新标题';
+    notifyListeners();
+    return renamed;
+  }
+
   Future<String> moveToTrash() async {
     final document = _requireDocument();
     if (_session?.state.isDirty ?? false) {

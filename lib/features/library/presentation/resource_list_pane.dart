@@ -13,6 +13,8 @@ class ResourceListPane extends StatefulWidget {
     this.onDuplicatePrompt,
     this.onImportSkill,
     this.onCreateMcp,
+    this.onCreateLink,
+    this.onPasteLink,
     super.key,
   });
 
@@ -23,6 +25,8 @@ class ResourceListPane extends StatefulWidget {
   final Future<void> Function(WorkbenchResource resource)? onDuplicatePrompt;
   final Future<void> Function()? onImportSkill;
   final Future<void> Function()? onCreateMcp;
+  final Future<void> Function()? onCreateLink;
+  final Future<void> Function()? onPasteLink;
 
   @override
   State<ResourceListPane> createState() => _ResourceListPaneState();
@@ -101,6 +105,31 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                 ),
               ),
             ],
+            if (widget.onPasteLink != null) ...[
+              const SizedBox(height: 8),
+              PushButton(
+                controlSize: ControlSize.large,
+                semanticLabel: '从剪贴板粘贴链接',
+                onPressed: () => widget.onPasteLink!(),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('从剪贴板粘贴链接'),
+                ),
+              ),
+            ],
+            if (widget.onCreateLink != null) ...[
+              const SizedBox(height: 8),
+              PushButton(
+                controlSize: ControlSize.large,
+                secondary: true,
+                semanticLabel: '新建空链接',
+                onPressed: () => widget.onCreateLink!(),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('新建空链接'),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Semantics(
               label: '搜索当前分类',
@@ -121,6 +150,8 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                     ? '暂无 SKILL，点击上方「导入 SKILL 文件夹」开始。'
                     : widget.onCreateMcp != null
                     ? '暂无 MCP 配置，点击上方「新建 MCP 配置」开始。'
+                    : widget.onPasteLink != null
+                    ? '暂无网站链接，先复制网址再点「从剪贴板粘贴链接」。'
                     : '未找到匹配资源',
                 style: typography.body,
               )

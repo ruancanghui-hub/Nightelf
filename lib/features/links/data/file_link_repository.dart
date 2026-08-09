@@ -1,66 +1,67 @@
 import 'dart:io';
 
-import 'package:ai_workbench/features/prompts/data/prompt_markdown_codec.dart';
-import 'package:ai_workbench/features/prompts/data/prompt_repository.dart';
-import 'package:ai_workbench/features/prompts/domain/prompt_document.dart';
+import 'package:ai_workbench/features/links/data/link_markdown_codec.dart';
+import 'package:ai_workbench/features/links/data/link_repository.dart';
+import 'package:ai_workbench/features/links/domain/link_document.dart';
 import 'package:ai_workbench/features/vault/data/vault_paths.dart';
 import 'package:ai_workbench/shared/domain/resource_type.dart';
 import 'package:ai_workbench/shared/io/atomic_file_writer.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 
-class FilePromptRepository implements PromptRepository {
-  FilePromptRepository({
+class FileLinkRepository implements LinkRepository {
+  FileLinkRepository({
     required Directory vaultRoot,
     AtomicFileWriter? writer,
-    PromptMarkdownCodec? codec,
+    LinkMarkdownCodec? codec,
     String Function()? idFactory,
     DateTime Function()? clock,
   }) : _vaultRoot = vaultRoot,
        _writer = writer ?? AtomicFileWriter(),
-       _codec = codec ?? const PromptMarkdownCodec(),
+       _codec = codec ?? const LinkMarkdownCodec(),
        _idFactory = idFactory ?? const Uuid().v4,
        _clock = clock ?? DateTime.now;
 
   final Directory _vaultRoot;
   final AtomicFileWriter _writer;
-  final PromptMarkdownCodec _codec;
+  final LinkMarkdownCodec _codec;
   final String Function() _idFactory;
   final DateTime Function() _clock;
 
-  Directory get _promptsDir => Directory(
-    p.join(_vaultRoot.path, VaultPaths.directoryFor(ResourceType.prompt)),
+  Directory get _linksDir => Directory(
+    p.join(_vaultRoot.path, VaultPaths.directoryFor(ResourceType.link)),
   );
 
   @override
-  Future<PromptDocument> create({
+  Future<LinkDocument> create({
     required String title,
+    required Uri uri,
     String description = '',
     List<String> tags = const [],
-    String body = '',
+    String notes = '',
   }) async {
-    await _promptsDir.create(recursive: true);
+    await _linksDir.create(recursive: true);
     final relativePath = await _allocateRelativePath(title);
-    final document = PromptDocument(
+    final document = LinkDocument(
       id: _idFactory(),
       title: title,
+      uri: uri,
       description: description,
       tags: tags,
-      body: body,
+      notes: notes,
       relativePath: relativePath,
     );
     return save(document);
   }
 
   @override
-  Future<PromptDocument> read(String relativePath) async {
+  Future<LinkDocument> read(String relativePath) async {
     final file = File(p.join(_vaultRoot.path, relativePath));
-    final text = await file.readAsString();
-    return _codec.decode(text, relativePath);
+    return _codec.decode(await file.readAsString(), relativePath);
   }
 
   @override
-  Future<PromptDocument> save(PromptDocument document) async {
+  Future<LinkDocument> save(LinkDocument document) async {
     final file = File(p.join(_vaultRoot.path, document.relativePath));
     await file.parent.create(recursive: true);
     await _writer.writeString(file, _codec.encode(document));
@@ -68,53 +69,20 @@ class FilePromptRepository implements PromptRepository {
   }
 
   @override
-  Future<PromptDocument> duplicate(String relativePath) async {
+  Future<LinkDocument> duplicate(String relativePath) async {
     final source = await read(relativePath);
     final title = '${source.title} 副本';
     final nextPath = await _allocateRelativePath(title);
-    final duplicate = source.copyWith(
-      id: _idFactory(),
-      title: title,
-      relativePath: nextPath,
+    return save(
+      source.copyWith(id: _idFactory(), title: title, relativePath: nextPath),
     );
-    return save(duplicate);
-  }
-
-  @override
-  Future<PromptDocument> rename(
-    String relativePath, {
-    required String title,
-    String? body,
-  }) async {
-    final trimmed = title.trim();
-    if (trimmed.isEmpty) {
-      throw ArgumentError('标题不能为空');
-    }
-    final source = await read(relativePath);
-    final nextPath = await _allocateRelativePath(
-      trimmed,
-      excluding: relativePath,
-    );
-    final renamed = source.copyWith(
-      title: trimmed,
-      body: body ?? source.body,
-      relativePath: nextPath,
-    );
-    await save(renamed);
-    if (nextPath != relativePath) {
-      final oldFile = File(p.join(_vaultRoot.path, relativePath));
-      if (await oldFile.exists()) {
-        await oldFile.delete();
-      }
-    }
-    return renamed;
   }
 
   @override
   Future<String> moveToTrash(String relativePath) async {
     final source = File(p.join(_vaultRoot.path, relativePath));
     if (!await source.exists()) {
-      throw StateError('提示词不存在：$relativePath');
+      throw StateError('链接不存在：$relativePath');
     }
     final stamp = _clock().toUtc().toIso8601String().replaceAll(':', '-');
     final destination = File(
@@ -131,29 +99,19 @@ class FilePromptRepository implements PromptRepository {
     return p.relative(destination.path, from: _vaultRoot.path);
   }
 
-  Future<String> _allocateRelativePath(
-    String title, {
-    String? excluding,
-  }) async {
-    final base = slugifyPromptTitle(title);
-    var candidate = 'prompts/$base.md';
+  Future<String> _allocateRelativePath(String title) async {
+    final base = slugifyLinkTitle(title);
+    var candidate = 'links/$base.md';
     var index = 2;
-    while (true) {
-      if (candidate == excluding) {
-        return candidate;
-      }
-      if (!await File(p.join(_vaultRoot.path, candidate)).exists()) {
-        return candidate;
-      }
-      candidate = 'prompts/$base-$index.md';
+    while (await File(p.join(_vaultRoot.path, candidate)).exists()) {
+      candidate = 'links/$base-$index.md';
       index += 1;
     }
+    return candidate;
   }
 }
 
-/// Lowercases ASCII letters, keeps Chinese characters, and collapses other
-/// runs into `-`.
-String slugifyPromptTitle(String title) {
+String slugifyLinkTitle(String title) {
   final buffer = StringBuffer();
   var pendingDash = false;
   for (final rune in title.trim().runes) {
@@ -173,5 +131,5 @@ String slugifyPromptTitle(String title) {
     }
   }
   final slug = buffer.toString();
-  return slug.isEmpty ? 'prompt' : slug;
+  return slug.isEmpty ? 'link' : slug;
 }

@@ -6,6 +6,7 @@ import 'package:ai_workbench/features/library/presentation/resource_list_pane.da
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/domain/resource_metadata.dart';
 import 'package:ai_workbench/features/metadata/presentation/collection_editor_sheet.dart';
+import 'package:ai_workbench/features/links/application/link_controller.dart';
 import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
 import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
 import 'package:ai_workbench/features/shell/application/workbench_controller.dart';
@@ -36,11 +37,15 @@ class WorkbenchShell extends StatefulWidget {
     this.promptController,
     this.skillController,
     this.mcpController,
+    this.linkController,
     this.restorationRepository,
     this.onCreatePrompt,
     this.onDuplicatePrompt,
     this.onImportSkill,
     this.onCreateMcp,
+    this.onCreateLink,
+    this.onPasteLink,
+    this.onPromptRenamed,
   });
 
   final List<WorkbenchResource>? resources;
@@ -51,11 +56,15 @@ class WorkbenchShell extends StatefulWidget {
   final PromptController? promptController;
   final SkillController? skillController;
   final McpController? mcpController;
+  final LinkController? linkController;
   final WorkspaceRestorationRepository? restorationRepository;
   final Future<void> Function()? onCreatePrompt;
   final Future<void> Function(WorkbenchResource resource)? onDuplicatePrompt;
   final Future<void> Function()? onImportSkill;
   final Future<void> Function()? onCreateMcp;
+  final Future<void> Function()? onCreateLink;
+  final Future<void> Function()? onPasteLink;
+  final Future<void> Function(String relativePath)? onPromptRenamed;
 
   @override
   State<WorkbenchShell> createState() => WorkbenchShellState();
@@ -290,6 +299,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     } else if (resource.type == ResourceType.mcpConfiguration &&
         widget.mcpController != null) {
       await widget.mcpController!.open(relativePath);
+    } else if (resource.type == ResourceType.websiteLink &&
+        widget.linkController != null) {
+      await widget.linkController!.open(relativePath);
     }
   }
 
@@ -314,6 +326,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     } else if (resource.type == ResourceType.mcpConfiguration &&
         widget.mcpController != null) {
       unawaited(widget.mcpController!.open(relativePath));
+    } else if (resource.type == ResourceType.websiteLink &&
+        widget.linkController != null) {
+      unawaited(widget.linkController!.open(relativePath));
     }
   }
 
@@ -435,6 +450,11 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                 label: '新建 MCP 配置',
                 execute: widget.onCreateMcp,
               ),
+              WorkbenchCommand(
+                id: 'new-link',
+                label: '粘贴网站链接',
+                execute: widget.onPasteLink ?? widget.onCreateLink,
+              ),
             ],
             onResourceSelected: _openResource,
             onDismissed: _closePalette,
@@ -524,6 +544,16 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                 ResourceType.mcpConfiguration
                                             ? widget.onCreateMcp
                                             : null,
+                                        onCreateLink:
+                                            _controller.selectedDestination ==
+                                                ResourceType.websiteLink
+                                            ? widget.onCreateLink
+                                            : null,
+                                        onPasteLink:
+                                            _controller.selectedDestination ==
+                                                ResourceType.websiteLink
+                                            ? widget.onPasteLink
+                                            : null,
                                       ),
                                       Expanded(
                                         child: Column(
@@ -547,6 +577,10 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                     widget.skillController,
                                                 mcpController:
                                                     widget.mcpController,
+                                                linkController:
+                                                    widget.linkController,
+                                                onPromptRenamed:
+                                                    widget.onPromptRenamed,
                                                 allResources:
                                                     _controller.allResources,
                                                 onOpenRelated: _openResource,

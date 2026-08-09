@@ -42,9 +42,13 @@ void main() {
     await controller.copyMarkdown();
     expect(clipboard.texts.last, '# 角色\n你是审查员。\n');
 
+    final renamed = await controller.rename('代码审查助手');
+    expect(renamed.title, '代码审查助手');
+    expect(renamed.relativePath, 'prompts/代码审查助手.md');
+
     final duplicated = await controller.duplicate();
     expect(duplicated.id, 'id-2');
-    expect(duplicated.title, '审查 副本');
+    expect(duplicated.title, '代码审查助手 副本');
 
     final trash = await controller.moveToTrash();
     expect(controller.document, isNull);
@@ -52,6 +56,6 @@ void main() {
 
     final restored = await controller.undoTrash();
     expect(restored.id, 'id-2');
-    expect(controller.document?.title, '审查 副本');
+    expect(controller.document?.title, '代码审查助手 副本');
   });
 }

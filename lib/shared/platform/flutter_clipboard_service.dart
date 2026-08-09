@@ -8,4 +8,14 @@ class FlutterClipboardService implements ClipboardService {
   Future<void> writeText(String text) {
     return Clipboard.setData(ClipboardData(text: text));
   }
+
+  @override
+  Future<String?> readText() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text;
+    if (text == null || text.trim().isEmpty) {
+      return null;
+    }
+    return text;
+  }
 }

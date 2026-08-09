@@ -5,6 +5,7 @@ import 'package:ai_workbench/features/editor/domain/document_path_resolver.dart'
 import 'package:ai_workbench/features/editor/presentation/text_editor_workspace.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/presentation/metadata_inspector.dart';
+import 'package:ai_workbench/features/links/application/link_controller.dart';
 import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
 import 'package:ai_workbench/features/mcp/presentation/mcp_workspace.dart';
 import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
@@ -28,6 +29,8 @@ class WorkspaceContent extends StatelessWidget {
     this.promptController,
     this.skillController,
     this.mcpController,
+    this.linkController,
+    this.onPromptRenamed,
     this.allResources = const [],
     this.onOpenRelated,
     this.showInspector = true,
@@ -42,6 +45,8 @@ class WorkspaceContent extends StatelessWidget {
   final PromptController? promptController;
   final SkillController? skillController;
   final McpController? mcpController;
+  final LinkController? linkController;
+  final Future<void> Function(String relativePath)? onPromptRenamed;
   final List<WorkbenchResource> allResources;
   final ValueChanged<WorkbenchResource>? onOpenRelated;
   final bool showInspector;
@@ -99,6 +104,8 @@ class WorkspaceContent extends StatelessWidget {
                           promptController: promptController,
                           skillController: skillController,
                           mcpController: mcpController,
+                          linkController: linkController,
+                          onPromptRenamed: onPromptRenamed,
                         )
                       : null;
                   final surface =
@@ -228,7 +235,7 @@ class WorkspaceContent extends StatelessWidget {
       typeLabel: '网站链接',
       status: hasLiveEditor ? '可编辑 · 自动保存' : '静态预览 · 无网络',
       primaryAction: hasLiveEditor ? '保存' : '保存模拟快照',
-      secondaryAction: '查看模拟信息',
+      secondaryAction: '复制链接',
       surface: const WebsiteWorkspace(),
       live: hasLiveEditor,
     ),

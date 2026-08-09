@@ -59,6 +59,19 @@ void main() {
     );
   });
 
+  test('rename updates title and filename', () async {
+    final created = await repository.create(title: '未命名提示词', body: 'body\n');
+    final renamed = await repository.rename(
+      created.relativePath,
+      title: '代码审查',
+      body: 'body\n',
+    );
+    expect(renamed.title, '代码审查');
+    expect(renamed.relativePath, 'prompts/代码审查.md');
+    expect(File(p.join(root.path, created.relativePath)).existsSync(), isFalse);
+    expect(File(p.join(root.path, renamed.relativePath)).existsSync(), isTrue);
+  });
+
   test('slugify keeps chinese and lowercases ascii', () {
     expect(slugifyPromptTitle('Hello 世界!!'), 'hello-世界');
     expect(slugifyPromptTitle('   '), 'prompt');

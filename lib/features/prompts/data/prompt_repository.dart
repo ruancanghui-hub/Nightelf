@@ -14,5 +14,11 @@ abstract interface class PromptRepository {
 
   Future<PromptDocument> duplicate(String relativePath);
 
+  Future<PromptDocument> rename(
+    String relativePath, {
+    required String title,
+    String? body,
+  });
+
   Future<String> moveToTrash(String relativePath);
 }

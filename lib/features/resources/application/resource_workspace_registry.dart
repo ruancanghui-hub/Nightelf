@@ -1,3 +1,5 @@
+import 'package:ai_workbench/features/links/application/link_controller.dart';
+import 'package:ai_workbench/features/links/presentation/link_workspace.dart';
 import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
 import 'package:ai_workbench/features/mcp/presentation/mcp_workspace.dart';
 import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
@@ -16,16 +18,22 @@ class ResourceWorkspaceRegistry {
     PromptController? promptController,
     SkillController? skillController,
     McpController? mcpController,
+    LinkController? linkController,
+    Future<void> Function(String relativePath)? onPromptRenamed,
   }) {
     return switch (resource.type) {
       ResourceType.aiPrompt when promptController != null => PromptWorkspace(
         controller: promptController,
+        onRenamed: onPromptRenamed,
       ),
       ResourceType.skillFolder when skillController != null => SkillWorkspace(
         controller: skillController,
       ),
       ResourceType.mcpConfiguration when mcpController != null => McpWorkspace(
         controller: mcpController,
+      ),
+      ResourceType.websiteLink when linkController != null => LinkWorkspace(
+        controller: linkController,
       ),
       _ => null,
     };
