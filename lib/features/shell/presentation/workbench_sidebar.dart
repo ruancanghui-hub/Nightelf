@@ -1,3 +1,5 @@
+import 'package:ai_workbench/features/metadata/domain/resource_metadata.dart';
+import 'package:ai_workbench/features/metadata/presentation/collection_sidebar_section.dart';
 import 'package:ai_workbench/features/shell/application/workbench_controller.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_focus_ring.dart';
@@ -10,12 +12,20 @@ class WorkbenchSidebar extends StatelessWidget {
     required this.controller,
     required this.onDestinationSelected,
     this.onResourceSelected,
+    this.collections = const [],
+    this.onCollectionSelected,
+    this.onCreateCollection,
+    this.onEditCollection,
     super.key,
   });
 
   final WorkbenchController controller;
   final ValueChanged<ResourceType> onDestinationSelected;
   final ValueChanged<WorkbenchResource>? onResourceSelected;
+  final List<CollectionRecord> collections;
+  final ValueChanged<CollectionRecord?>? onCollectionSelected;
+  final VoidCallback? onCreateCollection;
+  final ValueChanged<CollectionRecord>? onEditCollection;
 
   @override
   Widget build(BuildContext context) {
@@ -56,6 +66,18 @@ class WorkbenchSidebar extends StatelessWidget {
                 ),
               ),
             ),
+          if (onCollectionSelected != null &&
+              onCreateCollection != null &&
+              onEditCollection != null) ...[
+            const SizedBox(height: 18),
+            CollectionSidebarSection(
+              collections: collections,
+              selectedCollectionId: controller.selectedCollectionId,
+              onCollectionSelected: onCollectionSelected!,
+              onCreateCollection: onCreateCollection!,
+              onEditCollection: onEditCollection!,
+            ),
+          ],
           const SizedBox(height: 18),
           Text('收藏', style: typography.subheadline),
           const SizedBox(height: 6),
@@ -79,8 +101,23 @@ class WorkbenchSidebar extends StatelessWidget {
           const SizedBox(height: 18),
           Text('最近使用', style: typography.subheadline),
           const SizedBox(height: 6),
-          for (final resource in controller.recentResources.take(2))
-            Text(resource.title, overflow: TextOverflow.ellipsis),
+          if (controller.recentResources.isEmpty)
+            Text('暂无最近使用', style: typography.caption1)
+          else
+            for (final resource in controller.recentResources.take(5))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: GestureDetector(
+                  onTap: onResourceSelected == null
+                      ? null
+                      : () => onResourceSelected!(resource),
+                  child: Text(
+                    resource.title,
+                    overflow: TextOverflow.ellipsis,
+                    style: typography.body,
+                  ),
+                ),
+              ),
         ],
       ),
     );

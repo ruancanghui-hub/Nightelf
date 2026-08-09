@@ -1,9 +1,11 @@
+import 'dart:io';
+
 import 'package:ai_workbench/features/import/application/import_controller.dart';
 import 'package:ai_workbench/features/import/data/vault_import_repository.dart';
 import 'package:ai_workbench/features/import/presentation/import_review_sheet.dart';
 import 'package:ai_workbench/features/import/presentation/vault_drop_target.dart';
-import 'package:ai_workbench/features/metadata/data/favorites_repository.dart';
-import 'package:ai_workbench/features/metadata/data/json_favorites_repository.dart';
+import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
+import 'package:ai_workbench/features/metadata/data/json_metadata_repository.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart'
     as shell;
 import 'package:ai_workbench/features/shell/domain/workbench_resource_mapper.dart';
@@ -30,8 +32,7 @@ class OpenVaultWorkbench extends StatefulWidget {
 
 class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   late final ImportController _importController;
-  late FavoritesRepository _favoritesRepository;
-  Set<String> _favoriteIds = {};
+  late MetadataController _metadataController;
   bool _reviewOpen = false;
   String? _bannerMessage;
   shell.ResourceType? _preferredShellType;
@@ -41,14 +42,15 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   @override
   void initState() {
     super.initState();
-    _favoritesRepository = JsonFavoritesRepository(
-      vaultRoot: widget.openState.handle.root,
+    _metadataController = _createMetadataController(
+      widget.openState.handle.root,
     );
     _importController = ImportController(
       repository: VaultImportRepository(),
       onImported: (paths) => widget.vaultController.refreshPaths(paths),
     )..addListener(_onImportChanged);
-    _loadFavorites();
+    _metadataController.addListener(_onMetadataChanged);
+    _loadMetadata();
   }
 
   @override
@@ -56,24 +58,39 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.openState.handle.root.path !=
         widget.openState.handle.root.path) {
-      _favoritesRepository = JsonFavoritesRepository(
-        vaultRoot: widget.openState.handle.root,
-      );
-      _loadFavorites();
+      _metadataController
+        ..removeListener(_onMetadataChanged)
+        ..dispose();
+      _metadataController = _createMetadataController(
+        widget.openState.handle.root,
+      )..addListener(_onMetadataChanged);
+      _loadMetadata();
     } else if (!identical(
       oldWidget.openState.resources,
       widget.openState.resources,
     )) {
-      _shellKey.currentState?.applyFavoriteIds(_favoriteIds);
+      _shellKey.currentState?.applyFavoriteIds(_metadataController.favoriteIds);
+      _shellKey.currentState?.applyRecentResourceIds(
+        _metadataController.recentResourceIds,
+      );
     }
   }
 
   @override
   void dispose() {
+    _metadataController
+      ..removeListener(_onMetadataChanged)
+      ..dispose();
     _importController
       ..removeListener(_onImportChanged)
       ..dispose();
     super.dispose();
+  }
+
+  MetadataController _createMetadataController(Directory root) {
+    return MetadataController(
+      repository: JsonMetadataRepository(vaultRoot: root),
+    );
   }
 
   void _onImportChanged() {
@@ -82,25 +99,30 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     }
   }
 
-  Future<void> _loadFavorites() async {
-    final ids = await _favoritesRepository.loadFavoriteIds();
+  void _onMetadataChanged() {
     if (!mounted) {
       return;
     }
-    setState(() => _favoriteIds = ids);
-    _shellKey.currentState?.applyFavoriteIds(ids);
+    setState(() {});
+    _shellKey.currentState?.applyFavoriteIds(_metadataController.favoriteIds);
+    _shellKey.currentState?.applyRecentResourceIds(
+      _metadataController.recentResourceIds,
+    );
+  }
+
+  Future<void> _loadMetadata() async {
+    await _metadataController.load();
+    if (!mounted) {
+      return;
+    }
+    _shellKey.currentState?.applyFavoriteIds(_metadataController.favoriteIds);
+    _shellKey.currentState?.applyRecentResourceIds(
+      _metadataController.recentResourceIds,
+    );
   }
 
   Future<void> _toggleFavorite(String resourceId) async {
-    final next = _shellKey.currentState?.toggleFavorite(resourceId);
-    if (next == null) {
-      return;
-    }
-    _favoriteIds = next;
-    await _favoritesRepository.saveFavoriteIds(next);
-    if (mounted) {
-      setState(() {});
-    }
+    await _metadataController.toggleFavorite(resourceId);
   }
 
   ResourceType? get _preferredVaultType {
@@ -127,9 +149,10 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   @override
   Widget build(BuildContext context) {
+    final favoriteIds = _metadataController.favoriteIds;
     final resources = widget.openState.resources.map((record) {
       final mapped = workbenchResourceFromRecord(record);
-      return mapped.copyWith(isFavorite: _favoriteIds.contains(mapped.id));
+      return mapped.copyWith(isFavorite: favoriteIds.contains(mapped.id));
     }).toList();
 
     return VaultDropTarget(
@@ -157,6 +180,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                     setState(() => _preferredShellType = type);
                   },
                   onToggleFavorite: _toggleFavorite,
+                  metadataController: _metadataController,
                 ),
               ),
             ],

@@ -1,5 +1,8 @@
 import 'package:ai_workbench/features/command_palette/presentation/command_palette.dart';
 import 'package:ai_workbench/features/library/presentation/resource_list_pane.dart';
+import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
+import 'package:ai_workbench/features/metadata/domain/resource_metadata.dart';
+import 'package:ai_workbench/features/metadata/presentation/collection_editor_sheet.dart';
 import 'package:ai_workbench/features/shell/application/workbench_controller.dart';
 import 'package:ai_workbench/features/shell/application/workspace_tabs_controller.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
@@ -21,12 +24,14 @@ class WorkbenchShell extends StatefulWidget {
     this.onDestinationChanged,
     this.vaultRootPath,
     this.onToggleFavorite,
+    this.metadataController,
   });
 
   final List<WorkbenchResource>? resources;
   final ValueChanged<ResourceType>? onDestinationChanged;
   final String? vaultRootPath;
   final Future<void> Function(String resourceId)? onToggleFavorite;
+  final MetadataController? metadataController;
 
   @override
   State<WorkbenchShell> createState() => WorkbenchShellState();
@@ -36,9 +41,15 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   late final WorkbenchController _controller;
   late final WorkspaceTabsController _tabsController;
   bool _isPaletteOpen = false;
+  CollectionRecord? _editingCollection;
+  bool _creatingCollection = false;
 
   void applyFavoriteIds(Set<String> favoriteIds) {
     _controller.applyFavoriteIds(favoriteIds);
+  }
+
+  void applyRecentResourceIds(List<String> recentResourceIds) {
+    _controller.applyRecentResourceIds(recentResourceIds);
   }
 
   Set<String> toggleFavorite(String resourceId) {
@@ -51,6 +62,13 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     _controller = WorkbenchController(resources: widget.resources)
       ..addListener(_refresh);
     _tabsController = WorkspaceTabsController()..addListener(_refresh);
+    widget.metadataController?.addListener(_onMetadataChanged);
+    if (widget.metadataController != null) {
+      _controller.applyRecentResourceIds(
+        widget.metadataController!.recentResourceIds,
+      );
+      _controller.applyFavoriteIds(widget.metadataController!.favoriteIds);
+    }
     if (_controller.allResources.isNotEmpty) {
       _tabsController.openTab(_tabFor(_controller.selectedResource));
     }
@@ -63,10 +81,16 @@ class WorkbenchShellState extends State<WorkbenchShell> {
         widget.resources != null) {
       _controller.replaceResources(widget.resources!);
     }
+    if (oldWidget.metadataController != widget.metadataController) {
+      oldWidget.metadataController?.removeListener(_onMetadataChanged);
+      widget.metadataController?.addListener(_onMetadataChanged);
+      _onMetadataChanged();
+    }
   }
 
   @override
   void dispose() {
+    widget.metadataController?.removeListener(_onMetadataChanged);
     _controller
       ..removeListener(_refresh)
       ..dispose();
@@ -74,6 +98,34 @@ class WorkbenchShellState extends State<WorkbenchShell> {
       ..removeListener(_refresh)
       ..dispose();
     super.dispose();
+  }
+
+  void _onMetadataChanged() {
+    final metadata = widget.metadataController;
+    if (metadata == null) {
+      return;
+    }
+    _controller.applyFavoriteIds(metadata.favoriteIds);
+    _controller.applyRecentResourceIds(metadata.recentResourceIds);
+    final selectedId = _controller.selectedCollectionId;
+    if (selectedId != null) {
+      CollectionRecord? selected;
+      for (final collection in metadata.collections) {
+        if (collection.id == selectedId) {
+          selected = collection;
+          break;
+        }
+      }
+      if (selected == null) {
+        _controller.selectCollection(collectionId: null, memberIds: null);
+      } else {
+        _controller.selectCollection(
+          collectionId: selected.id,
+          memberIds: selected.resourceIds.toSet(),
+        );
+      }
+    }
+    _refresh();
   }
 
   void _refresh() => setState(() {});
@@ -98,12 +150,13 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     }
   }
 
-  void _openResource(WorkbenchResource resource) {
+  Future<void> _openResource(WorkbenchResource resource) async {
     _controller.selectResource(resource);
     _tabsController.openTab(_tabFor(resource));
     if (_isPaletteOpen) {
       setState(() => _isPaletteOpen = false);
     }
+    await widget.metadataController?.recordRecent(resource.id);
   }
 
   void _activateTab(String resourceId) {
@@ -113,6 +166,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     }
     _tabsController.activateTab(resourceId);
     _controller.selectResource(resource);
+    widget.metadataController?.recordRecent(resourceId);
   }
 
   void _closeTab(String resourceId) {
@@ -130,8 +184,24 @@ class WorkbenchShellState extends State<WorkbenchShell> {
 
   void _closePalette() => setState(() => _isPaletteOpen = false);
 
+  void _selectCollection(CollectionRecord? collection) {
+    if (collection == null) {
+      _controller.selectCollection(collectionId: null, memberIds: null);
+      return;
+    }
+    _controller.selectCollection(
+      collectionId: collection.id,
+      memberIds: collection.resourceIds.toSet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final metadata = widget.metadataController;
+    final editing = _editingCollection;
+    final showEditor =
+        metadata != null && (_creatingCollection || editing != null);
+
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.keyK, meta: true):
@@ -156,6 +226,22 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                 controller: _controller,
                                 onDestinationSelected: _selectDestination,
                                 onResourceSelected: _openResource,
+                                collections: metadata?.collections ?? const [],
+                                onCollectionSelected: metadata == null
+                                    ? null
+                                    : _selectCollection,
+                                onCreateCollection: metadata == null
+                                    ? null
+                                    : () => setState(() {
+                                        _creatingCollection = true;
+                                        _editingCollection = null;
+                                      }),
+                                onEditCollection: metadata == null
+                                    ? null
+                                    : (collection) => setState(() {
+                                        _creatingCollection = false;
+                                        _editingCollection = collection;
+                                      }),
                               ),
                               ResourceListPane(
                                 controller: _controller,
@@ -176,6 +262,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                         vaultRootPath: widget.vaultRootPath,
                                         onToggleFavorite:
                                             widget.onToggleFavorite,
+                                        metadataController: metadata,
+                                        allResources: _controller.allResources,
+                                        onOpenRelated: _openResource,
                                       ),
                                     ),
                                   ],
@@ -194,6 +283,16 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                   resources: _controller.allResources,
                   onResourceSelected: _openResource,
                   onDismissed: _closePalette,
+                ),
+              if (showEditor)
+                CollectionEditorSheet(
+                  metadataController: metadata,
+                  allResources: _controller.allResources,
+                  collection: editing,
+                  onClose: () => setState(() {
+                    _creatingCollection = false;
+                    _editingCollection = null;
+                  }),
                 ),
             ],
           ),

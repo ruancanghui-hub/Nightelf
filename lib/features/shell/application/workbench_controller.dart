@@ -67,11 +67,16 @@ class WorkbenchController extends ChangeNotifier {
   final List<WorkbenchResource> _resources;
   late ResourceType _selectedDestination;
   WorkbenchResource? _selectedResource;
+  String? _selectedCollectionId;
+  List<String> _recentResourceIds = const [];
+  Set<String>? _collectionMemberIds;
 
   List<String> get destinationLabels =>
       ResourceType.values.map((type) => _destinationLabels[type]!).toList();
 
   ResourceType get selectedDestination => _selectedDestination;
+
+  String? get selectedCollectionId => _selectedCollectionId;
 
   WorkbenchResource get selectedResource =>
       _selectedResource ??
@@ -85,14 +90,36 @@ class WorkbenchController extends ChangeNotifier {
 
   List<WorkbenchResource> get allResources => List.unmodifiable(_resources);
 
-  List<WorkbenchResource> get selectedResources => _resources
-      .where((resource) => resource.type == _selectedDestination)
-      .toList();
+  List<WorkbenchResource> get selectedResources {
+    final byType = _resources.where(
+      (resource) => resource.type == _selectedDestination,
+    );
+    final members = _collectionMemberIds;
+    if (_selectedCollectionId == null || members == null) {
+      return byType.toList();
+    }
+    return byType.where((resource) => members.contains(resource.id)).toList();
+  }
 
   List<WorkbenchResource> get favoriteResources =>
       _resources.where((resource) => resource.isFavorite).toList();
 
-  List<WorkbenchResource> get recentResources => _resources.take(3).toList();
+  List<WorkbenchResource> get recentResources {
+    if (_recentResourceIds.isEmpty) {
+      return _resources.take(3).toList();
+    }
+    final resolved = <WorkbenchResource>[];
+    for (final id in _recentResourceIds) {
+      final resource = resourceById(id);
+      if (resource != null) {
+        resolved.add(resource);
+      }
+      if (resolved.length >= 8) {
+        break;
+      }
+    }
+    return resolved;
+  }
 
   String labelFor(ResourceType type) => _destinationLabels[type]!;
 
@@ -107,8 +134,31 @@ class WorkbenchController extends ChangeNotifier {
 
   void selectDestination(ResourceType type) {
     _selectedDestination = type;
+    _selectedCollectionId = null;
+    _collectionMemberIds = null;
     final matching = selectedResources;
     _selectedResource = matching.isEmpty ? null : matching.first;
+    notifyListeners();
+  }
+
+  void selectCollection({
+    required String? collectionId,
+    required Set<String>? memberIds,
+  }) {
+    _selectedCollectionId = collectionId;
+    _collectionMemberIds = memberIds == null
+        ? null
+        : Set<String>.from(memberIds);
+    final matching = selectedResources;
+    if (_selectedResource == null ||
+        matching.every((resource) => resource.id != _selectedResource!.id)) {
+      _selectedResource = matching.isEmpty ? null : matching.first;
+    }
+    notifyListeners();
+  }
+
+  void applyRecentResourceIds(List<String> recentResourceIds) {
+    _recentResourceIds = List<String>.from(recentResourceIds);
     notifyListeners();
   }
 

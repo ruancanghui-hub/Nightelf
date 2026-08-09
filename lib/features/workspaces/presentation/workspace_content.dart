@@ -3,6 +3,8 @@ import 'package:ai_workbench/features/editor/data/file_document_storage.dart';
 import 'package:ai_workbench/features/editor/domain/document_descriptor.dart';
 import 'package:ai_workbench/features/editor/domain/document_path_resolver.dart';
 import 'package:ai_workbench/features/editor/presentation/text_editor_workspace.dart';
+import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
+import 'package:ai_workbench/features/metadata/presentation/metadata_inspector.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/workspaces/presentation/mcp_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/prompt_workspace.dart';
@@ -18,12 +20,18 @@ class WorkspaceContent extends StatelessWidget {
     required this.resource,
     this.vaultRootPath,
     this.onToggleFavorite,
+    this.metadataController,
+    this.allResources = const [],
+    this.onOpenRelated,
     super.key,
   });
 
   final WorkbenchResource? resource;
   final String? vaultRootPath;
   final Future<void> Function(String resourceId)? onToggleFavorite;
+  final MetadataController? metadataController;
+  final List<WorkbenchResource> allResources;
+  final ValueChanged<WorkbenchResource>? onOpenRelated;
 
   @override
   Widget build(BuildContext context) {
@@ -89,10 +97,9 @@ class WorkspaceContent extends StatelessWidget {
                         else
                           SizedBox(height: 420, child: surface),
                         const SizedBox(height: 16),
-                        _WorkspaceInspector(
+                        _buildInspector(
                           resource: resource,
                           presentation: presentation,
-                          onToggleFavorite: onToggleFavorite,
                         ),
                       ],
                     ),
@@ -112,10 +119,9 @@ class WorkspaceContent extends StatelessWidget {
                       width: 280,
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.fromLTRB(0, 24, 24, 24),
-                        child: _WorkspaceInspector(
+                        child: _buildInspector(
                           resource: resource,
                           presentation: presentation,
-                          onToggleFavorite: onToggleFavorite,
                         ),
                       ),
                     ),
@@ -126,6 +132,28 @@ class WorkspaceContent extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildInspector({
+    required WorkbenchResource resource,
+    required _WorkspacePresentation presentation,
+  }) {
+    final metadata = metadataController;
+    if (presentation.live && metadata != null) {
+      return MetadataInspector(
+        resource: resource,
+        typeLabel: presentation.typeLabel,
+        statusLabel: presentation.status,
+        metadataController: metadata,
+        allResources: allResources,
+        onOpenRelated: onOpenRelated,
+      );
+    }
+    return _WorkspaceInspector(
+      resource: resource,
+      presentation: presentation,
+      onToggleFavorite: onToggleFavorite,
     );
   }
 
