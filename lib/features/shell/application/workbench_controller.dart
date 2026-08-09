@@ -62,6 +62,20 @@ class WorkbenchController extends ChangeNotifier {
       subtitle: '发布流程的视觉占位项',
       isFavorite: false,
     ),
+    WorkbenchResource(
+      id: 'prompt-social-copy',
+      type: ResourceType.aiPrompt,
+      title: '小红书爆款写作合集',
+      subtitle: '社交内容的标题与正文灵感',
+      isFavorite: false,
+    ),
+    WorkbenchResource(
+      id: 'skill-productivity',
+      type: ResourceType.skillFolder,
+      title: '研发提效工具包',
+      subtitle: '常用研发任务的工作技能集合',
+      isFavorite: false,
+    ),
   ];
 
   final List<WorkbenchResource> _resources;
@@ -106,7 +120,7 @@ class WorkbenchController extends ChangeNotifier {
 
   List<WorkbenchResource> get recentResources {
     if (_recentResourceIds.isEmpty) {
-      return _resources.take(3).toList();
+      return _resources.take(8).toList();
     }
     final resolved = <WorkbenchResource>[];
     for (final id in _recentResourceIds) {

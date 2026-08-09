@@ -6,7 +6,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 void main() {
-  Future<void> pumpShell(WidgetTester tester, ThemeMode themeMode) async {
+  Future<void> pumpShell(
+    WidgetTester tester,
+    ThemeMode themeMode, {
+    bool overview = false,
+  }) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1024));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
@@ -14,7 +18,7 @@ void main() {
         themeMode: themeMode,
         theme: MacosThemeData.light(),
         darkTheme: MacosThemeData.dark(),
-        home: const WorkbenchShell(),
+        home: WorkbenchShell(vaultRootPath: overview ? '/test-vault' : null),
       ),
     );
     await tester.pumpAndSettle();
@@ -40,14 +44,14 @@ void main() {
         findsOneWidget,
       );
     }
-    expect(find.text('收藏'), findsOneWidget);
-    expect(find.text('最近使用'), findsOneWidget);
-    expect(find.text('暗夜精灵-AI定制工作台'), findsOneWidget);
+    expect(find.text('概览'), findsOneWidget);
+    expect(find.text('最近打开'), findsOneWidget);
+    expect(find.text('Nightelf · AI 工作台'), findsOneWidget);
     expect(find.text('⌘K'), findsOneWidget);
-    expect(find.text('未配置同步'), findsOneWidget);
+    expect(find.text('同步'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
-        (widget) => widget is PushButton && widget.semanticLabel == '搜索资源',
+        (widget) => widget is PushButton && widget.semanticLabel == '打开命令面板',
       ),
       findsOneWidget,
     );
@@ -75,5 +79,14 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(WorkbenchShell), findsOneWidget);
     }
+  });
+
+  testWidgets('opens on the emerald overview dashboard', (tester) async {
+    await pumpShell(tester, ThemeMode.dark, overview: true);
+
+    expect(find.text('概览'), findsOneWidget);
+    expect(find.text('今晚想整理什么？'), findsOneWidget);
+    expect(find.text('拖入文件到工作台'), findsOneWidget);
+    expect(find.text('Vault 已就绪'), findsOneWidget);
   });
 }

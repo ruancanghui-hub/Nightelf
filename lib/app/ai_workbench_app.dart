@@ -12,6 +12,7 @@ import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 import 'package:path/path.dart' as p;
 
@@ -56,7 +57,7 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     final controller = ref.watch(vaultControllerProvider);
 
     return MacosApp(
-      title: '暗夜精灵-AI定制工作台',
+      title: 'Nightelf · AI 工作台',
       debugShowCheckedModeBanner: false,
       themeMode: widget.themeMode,
       theme: WorkbenchTheme.light(),
@@ -121,14 +122,7 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     if (await marker.exists()) {
       return selected;
     }
-    const typed = {
-      'prompts',
-      'skills',
-      'mcp',
-      'links',
-      'workflows',
-      'assets',
-    };
+    const typed = {'prompts', 'skills', 'mcp', 'links', 'workflows', 'assets'};
     final base = p.basename(selected.path);
     if (!typed.contains(base)) {
       return selected;
@@ -201,42 +195,79 @@ class _WelcomeScaffold extends StatelessWidget {
     return MacosScaffold(
       children: [
         ContentArea(
-          builder: (context, scrollController) => Center(
+          builder: (context, scrollController) => Container(
+            color: const Color(0xFF030B09),
+            alignment: Alignment.center,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('打开暗夜精灵-AI定制工作台'),
-                  const SizedBox(height: 8),
-                  const Text('每个 Vault 文件夹是独立工作区，收藏与资源互不共享。'),
-                  const SizedBox(height: 8),
-                  Text(
-                    '打开时请选择含 .ai-vault.json 的 Vault 根目录，不要选 workflows 等子文件夹。',
-                    style: MacosTheme.of(context).typography.caption1,
-                    textAlign: TextAlign.center,
-                  ),
-                  if (errorMessage != null) ...[
-                    const SizedBox(height: 12),
-                    Text(errorMessage!),
+              constraints: const BoxConstraints(maxWidth: 510),
+              child: Container(
+                padding: const EdgeInsets.all(36),
+                decoration: BoxDecoration(
+                  color: const Color(0xE60A1916),
+                  border: Border.all(color: const Color(0xFF1B4D40)),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x405DE7A7), blurRadius: 24),
                   ],
-                  const SizedBox(height: 20),
-                  PushButton(
-                    controlSize: ControlSize.large,
-                    onPressed: () {
-                      onCreate();
-                    },
-                    child: const Text('创建 Vault'),
-                  ),
-                  const SizedBox(height: 12),
-                  PushButton(
-                    controlSize: ControlSize.large,
-                    onPressed: () {
-                      onOpen();
-                    },
-                    child: const Text('打开 Vault'),
-                  ),
-                ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      LucideIcons.leafyGreen,
+                      color: Color(0xFF5DE7A7),
+                      size: 48,
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      '开启你的绿光工作台',
+                      style: TextStyle(
+                        color: Color(0xFFF2FFF8),
+                        fontSize: 27,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '把 AI 提示词、SKILL、MCP 配置、网站链接与工作流收进一个可同步的本地 Vault。',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xFF9BB4AB), height: 1.55),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text(
+                      '打开时请选择含 .ai-vault.json 的 Vault 根目录。',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Color(0xFF6F9184), fontSize: 12),
+                    ),
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFFFFA6A6)),
+                      ),
+                    ],
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      child: PushButton(
+                        controlSize: ControlSize.large,
+                        onPressed: onCreate,
+                        child: const Text('创建 Vault'),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: PushButton(
+                        controlSize: ControlSize.large,
+                        secondary: true,
+                        onPressed: onOpen,
+                        child: const Text('打开 Vault'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

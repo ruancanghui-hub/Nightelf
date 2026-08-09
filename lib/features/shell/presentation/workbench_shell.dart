@@ -7,6 +7,7 @@ import 'package:ai_workbench/features/library/presentation/resource_list_pane.da
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/domain/resource_metadata.dart';
 import 'package:ai_workbench/features/metadata/presentation/collection_editor_sheet.dart';
+import 'package:ai_workbench/features/overview/presentation/emerald_overview_dashboard.dart';
 import 'package:ai_workbench/features/links/application/link_controller.dart';
 import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
 import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
@@ -84,6 +85,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   late final FocusNode _sidebarFocusNode;
   late final FocusNode _contentFocusNode;
   bool _isPaletteOpen = false;
+  bool _showOverview = false;
   bool _inspectorVisible = true;
   double _sidebarWidth = 248;
   CollectionRecord? _editingCollection;
@@ -115,6 +117,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   @override
   void initState() {
     super.initState();
+    _showOverview = widget.vaultRootPath != null;
     _sidebarFocusNode = FocusNode(debugLabel: 'workbench-sidebar');
     _contentFocusNode = FocusNode(debugLabel: 'workbench-content');
     _controller = WorkbenchController(resources: widget.resources)
@@ -283,6 +286,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   }
 
   void _selectDestination(ResourceType type) {
+    setState(() => _showOverview = false);
     _controller.selectDestination(type);
     widget.onDestinationChanged?.call(type);
     final matching = _controller.selectedResources;
@@ -292,6 +296,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   }
 
   Future<void> _openResource(WorkbenchResource resource) async {
+    if (_showOverview) {
+      setState(() => _showOverview = false);
+    }
     _controller.selectResource(resource);
     _tabsController.openTab(_tabFor(resource));
     if (_isPaletteOpen) {
@@ -321,6 +328,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   }
 
   void _activateTab(String resourceId) {
+    if (_showOverview) {
+      setState(() => _showOverview = false);
+    }
     final resource = _controller.resourceById(resourceId);
     if (resource == null) {
       return;
@@ -443,6 +453,38 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     ),
   };
 
+  Widget _buildSidebar({
+    required MetadataController? metadata,
+    required double width,
+    required bool compact,
+  }) {
+    return WorkbenchSidebar(
+      controller: _controller,
+      width: compact ? 72 : width * 0.20335,
+      overviewSelected: _showOverview,
+      onOverviewSelected: () => setState(() => _showOverview = true),
+      compact: compact,
+      focusNode: _sidebarFocusNode,
+      activeResourceId: _tabsController.activeResourceId,
+      onDestinationSelected: _selectDestination,
+      onResourceSelected: _openResource,
+      collections: metadata?.collections ?? const [],
+      onCollectionSelected: metadata == null ? null : _selectCollection,
+      onCreateCollection: metadata == null
+          ? null
+          : () => setState(() {
+              _creatingCollection = true;
+              _editingCollection = null;
+            }),
+      onEditCollection: metadata == null
+          ? null
+          : (collection) => setState(() {
+              _creatingCollection = false;
+              _editingCollection = collection;
+            }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final metadata = widget.metadataController;
@@ -503,140 +545,168 @@ class WorkbenchShellState extends State<WorkbenchShell> {
               return MacosWindow(
                 child: Stack(
                   children: [
-                    MacosScaffold(
-                      children: [
-                        ContentArea(
-                          builder: (context, scrollController) {
-                            return Column(
+                    ColoredBox(
+                      color: const Color(0xFF030B09),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildSidebar(
+                            metadata: metadata,
+                            width: width.toDouble(),
+                            compact: compactSidebar,
+                          ),
+                          Expanded(
+                            child: Column(
                               children: [
                                 WorkbenchToolbar(
                                   onGlobalSearch: _openPalette,
                                   onToggleInspector: _toggleInspector,
                                   inspectorVisible: !collapseInspector,
+                                  showActions: !_showOverview,
                                 ),
                                 Expanded(
                                   child: Row(
                                     children: [
-                                      WorkbenchSidebar(
-                                        controller: _controller,
-                                        compact: compactSidebar,
-                                        focusNode: _sidebarFocusNode,
-                                        activeResourceId:
-                                            _tabsController.activeResourceId,
-                                        onDestinationSelected:
-                                            _selectDestination,
-                                        onResourceSelected: _openResource,
-                                        collections:
-                                            metadata?.collections ?? const [],
-                                        onCollectionSelected: metadata == null
-                                            ? null
-                                            : _selectCollection,
-                                        onCreateCollection: metadata == null
-                                            ? null
-                                            : () => setState(() {
-                                                _creatingCollection = true;
-                                                _editingCollection = null;
-                                              }),
-                                        onEditCollection: metadata == null
-                                            ? null
-                                            : (collection) => setState(() {
-                                                _creatingCollection = false;
-                                                _editingCollection = collection;
-                                              }),
-                                      ),
-                                      ResourceListPane(
-                                        controller: _controller,
-                                        onResourceSelected: _openResource,
-                                        onToggleFavorite:
-                                            widget.onToggleFavorite,
-                                        onCreatePrompt:
-                                            _controller.selectedDestination ==
-                                                ResourceType.aiPrompt
-                                            ? widget.onCreatePrompt
-                                            : null,
-                                        onDuplicatePrompt:
-                                            _controller.selectedDestination ==
-                                                ResourceType.aiPrompt
-                                            ? widget.onDuplicatePrompt
-                                            : null,
-                                        onImportSkill:
-                                            _controller.selectedDestination ==
-                                                ResourceType.skillFolder
-                                            ? widget.onImportSkill
-                                            : null,
-                                        onCreateMcp:
-                                            _controller.selectedDestination ==
-                                                ResourceType.mcpConfiguration
-                                            ? widget.onCreateMcp
-                                            : null,
-                                        onCreateLink:
-                                            _controller.selectedDestination ==
-                                                ResourceType.websiteLink
-                                            ? widget.onCreateLink
-                                            : null,
-                                        onPasteLink:
-                                            _controller.selectedDestination ==
-                                                ResourceType.websiteLink
-                                            ? widget.onPasteLink
-                                            : null,
-                                        onCreateWorkflow:
-                                            _controller.selectedDestination ==
-                                                ResourceType.workflowFile
-                                            ? widget.onCreateWorkflow
-                                            : null,
-                                        onImportWorkflow:
-                                            _controller.selectedDestination ==
-                                                ResourceType.workflowFile
-                                            ? widget.onImportWorkflow
-                                            : null,
-                                      ),
                                       Expanded(
-                                        child: Column(
-                                          children: [
-                                            WorkspaceTabStrip(
-                                              controller: _tabsController,
-                                              onTabActivated: _activateTab,
-                                              onTabClosed: _closeTab,
-                                            ),
-                                            Expanded(
-                                              child: WorkspaceContent(
-                                                resource: _contentResource,
-                                                vaultRootPath:
-                                                    widget.vaultRootPath,
-                                                onToggleFavorite:
-                                                    widget.onToggleFavorite,
-                                                metadataController: metadata,
-                                                promptController:
-                                                    widget.promptController,
-                                                skillController:
-                                                    widget.skillController,
-                                                mcpController:
-                                                    widget.mcpController,
-                                                linkController:
-                                                    widget.linkController,
-                                                workflowController:
-                                                    widget.workflowController,
-                                                onRenamed: widget.onRenamed,
-                                                allResources:
+                                        child: _showOverview
+                                            ? EmeraldOverviewDashboard(
+                                                resources:
                                                     _controller.allResources,
-                                                onOpenRelated: _openResource,
-                                                showInspector:
-                                                    !collapseInspector,
-                                                contentFocusNode:
-                                                    _contentFocusNode,
+                                                recentResources:
+                                                    _controller.recentResources,
+                                                labelFor: _controller.labelFor,
+                                                onTypeSelected:
+                                                    _selectDestination,
+                                                onResourceSelected:
+                                                    _openResource,
+                                              )
+                                            : Row(
+                                                children: [
+                                                  ResourceListPane(
+                                                    controller: _controller,
+                                                    onResourceSelected:
+                                                        _openResource,
+                                                    onToggleFavorite:
+                                                        widget.onToggleFavorite,
+                                                    onCreatePrompt:
+                                                        _controller
+                                                                .selectedDestination ==
+                                                            ResourceType
+                                                                .aiPrompt
+                                                        ? widget.onCreatePrompt
+                                                        : null,
+                                                    onDuplicatePrompt:
+                                                        _controller
+                                                                .selectedDestination ==
+                                                            ResourceType
+                                                                .aiPrompt
+                                                        ? widget
+                                                              .onDuplicatePrompt
+                                                        : null,
+                                                    onImportSkill:
+                                                        _controller
+                                                                .selectedDestination ==
+                                                            ResourceType
+                                                                .skillFolder
+                                                        ? widget.onImportSkill
+                                                        : null,
+                                                    onCreateMcp:
+                                                        _controller
+                                                                .selectedDestination ==
+                                                            ResourceType
+                                                                .mcpConfiguration
+                                                        ? widget.onCreateMcp
+                                                        : null,
+                                                    onCreateLink:
+                                                        _controller
+                                                                .selectedDestination ==
+                                                            ResourceType
+                                                                .websiteLink
+                                                        ? widget.onCreateLink
+                                                        : null,
+                                                    onPasteLink:
+                                                        _controller
+                                                                .selectedDestination ==
+                                                            ResourceType
+                                                                .websiteLink
+                                                        ? widget.onPasteLink
+                                                        : null,
+                                                    onCreateWorkflow:
+                                                        _controller
+                                                                .selectedDestination ==
+                                                            ResourceType
+                                                                .workflowFile
+                                                        ? widget
+                                                              .onCreateWorkflow
+                                                        : null,
+                                                    onImportWorkflow:
+                                                        _controller
+                                                                .selectedDestination ==
+                                                            ResourceType
+                                                                .workflowFile
+                                                        ? widget
+                                                              .onImportWorkflow
+                                                        : null,
+                                                  ),
+                                                  Expanded(
+                                                    child: Column(
+                                                      children: [
+                                                        WorkspaceTabStrip(
+                                                          controller:
+                                                              _tabsController,
+                                                          onTabActivated:
+                                                              _activateTab,
+                                                          onTabClosed:
+                                                              _closeTab,
+                                                        ),
+                                                        Expanded(
+                                                          child: WorkspaceContent(
+                                                            resource:
+                                                                _contentResource,
+                                                            vaultRootPath: widget
+                                                                .vaultRootPath,
+                                                            onToggleFavorite: widget
+                                                                .onToggleFavorite,
+                                                            metadataController:
+                                                                metadata,
+                                                            promptController: widget
+                                                                .promptController,
+                                                            skillController: widget
+                                                                .skillController,
+                                                            mcpController: widget
+                                                                .mcpController,
+                                                            linkController: widget
+                                                                .linkController,
+                                                            workflowController:
+                                                                widget
+                                                                    .workflowController,
+                                                            onRenamed: widget
+                                                                .onRenamed,
+                                                            allResources:
+                                                                _controller
+                                                                    .allResources,
+                                                            onOpenRelated:
+                                                                _openResource,
+                                                            showInspector:
+                                                                !collapseInspector,
+                                                            contentFocusNode:
+                                                                _contentFocusNode,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                            ),
-                                          ],
-                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
                               ],
-                            );
-                          },
-                        ),
-                      ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     if (palette != null) palette,
                     if (showEditor)

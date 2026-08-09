@@ -11,7 +11,7 @@ abstract final class WorkbenchTheme {
   static MacosThemeData dark() {
     return MacosThemeData(
       brightness: Brightness.dark,
-      accentColor: AccentColor.blue,
+      accentColor: AccentColor.green,
       canvasColor: _darkCanvas,
       dividerColor: _darkDivider,
     );
@@ -20,7 +20,7 @@ abstract final class WorkbenchTheme {
   static MacosThemeData light() {
     return MacosThemeData(
       brightness: Brightness.light,
-      accentColor: AccentColor.blue,
+      accentColor: AccentColor.green,
       canvasColor: _lightCanvas,
       dividerColor: _lightDivider,
     );

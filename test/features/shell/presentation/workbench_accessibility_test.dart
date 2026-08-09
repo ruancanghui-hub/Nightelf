@@ -3,6 +3,7 @@ import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 Future<void> _disposeShell(WidgetTester tester) async {
@@ -24,7 +25,7 @@ void main() {
 
     expect(
       find.byWidgetPredicate(
-        (widget) => widget is PushButton && widget.semanticLabel == '搜索资源',
+        (widget) => widget is PushButton && widget.semanticLabel == '打开命令面板',
       ),
       findsOneWidget,
     );
@@ -57,8 +58,7 @@ void main() {
     expect(
       find.byWidgetPredicate(
         (widget) =>
-            widget is MacosIconButton &&
-            widget.semanticLabel == '关闭标签页：发布说明助手',
+            widget is MacosIconButton && widget.semanticLabel == '关闭标签页：发布说明助手',
       ),
       findsOneWidget,
     );
@@ -87,7 +87,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byType(WorkbenchSidebar),
-        matching: find.text('提'),
+        matching: find.byIcon(LucideIcons.messageCircle),
       ),
       findsOneWidget,
     );
@@ -116,7 +116,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
     await tester.tap(
       find.byWidgetPredicate(
-        (widget) => widget is PushButton && widget.semanticLabel == '搜索资源',
+        (widget) => widget is PushButton && widget.semanticLabel == '打开命令面板',
       ),
     );
     await tester.pump();
