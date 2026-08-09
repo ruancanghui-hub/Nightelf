@@ -50,7 +50,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 900));
     await tester.pumpAndSettle();
 
-    expect(find.text('开启你的绿光工作台'), findsOneWidget);
+    expect(find.text('开启你的暗夜精灵工作台'), findsOneWidget);
     final logo = tester.widget<Image>(
       find.byKey(const ValueKey('nightelf-welcome-logo')),
     );
@@ -91,6 +91,34 @@ void main() {
     picker.complete(null);
     await tester.pumpAndSettle();
     expect(find.text('正在选择文件夹…'), findsNothing);
+  });
+
+  testWidgets('welcome open button accepts a mouse tap with slight movement', (
+    tester,
+  ) async {
+    final picker = _HangingDirectoryPicker();
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      ProviderScope(
+        child: AiWorkbenchApp(skipRestore: true, directoryPicker: picker),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+
+    final button = find.text('打开 Vault');
+    final center = tester.getCenter(button);
+    final gesture = await tester.startGesture(center);
+    await gesture.moveBy(const Offset(2, 3));
+    await gesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('正在选择文件夹…'), findsOneWidget);
+    picker.complete(null);
+    await tester.pumpAndSettle();
   });
 
   testWidgets('shows the Nightelf splash for 900 ms before the app home', (

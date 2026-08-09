@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show PointerDeviceKind;
 
 import 'package:ai_workbench/app/theme/workbench_theme.dart';
 import 'package:ai_workbench/app/nightelf_splash_screen.dart';
@@ -109,6 +110,11 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     if (_vaultBusy) {
       return;
     }
+    // Finish the button tap before disabling controls / opening a native panel.
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    if (!mounted || _vaultBusy) {
+      return;
+    }
     setState(() => _vaultBusy = true);
     try {
       final path = await _pickDirectory(
@@ -132,6 +138,11 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
 
   Future<void> _openVault(VaultController controller) async {
     if (_vaultBusy) {
+      return;
+    }
+    // Finish the button tap before disabling controls / opening a native panel.
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    if (!mounted || _vaultBusy) {
       return;
     }
     setState(() => _vaultBusy = true);
@@ -177,8 +188,6 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     required String dialogTitle,
     required bool allowCreate,
   }) async {
-    // Let the button gesture finish before presenting a native panel.
-    await Future<void>.delayed(const Duration(milliseconds: 100));
     if (!mounted) {
       return null;
     }
@@ -231,128 +240,152 @@ class _WelcomeScaffold extends StatelessWidget {
         ContentArea(
           builder: (context, scrollController) => ColoredBox(
             color: const Color(0xFF030B09),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                return SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 32,
-                  ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight - 64,
-                      maxWidth: 510,
-                    ),
-                    child: Center(
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(36, 40, 36, 40),
-                        decoration: BoxDecoration(
-                          color: const Color(0xE60A1916),
-                          border: Border.all(color: const Color(0xFF1B4D40)),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x405DE7A7),
-                              blurRadius: 24,
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'assets/nightelf-logo.png',
-                              key: const ValueKey('nightelf-welcome-logo'),
-                              width: 96,
-                              height: 96,
-                              fit: BoxFit.contain,
-                              semanticLabel: 'Nightelf Logo',
-                            ),
-                            const SizedBox(height: 18),
-                            const Text(
-                              '开启你的绿光工作台',
-                              style: TextStyle(
-                                color: Color(0xFFF2FFF8),
-                                fontSize: 27,
-                                fontWeight: FontWeight.w700,
+            // Full-height scrollables steal desktop mouse drags from buttons.
+            // Keep the card centered, scroll only when content overflows, and
+            // never treat mouse movement as a scroll drag on this page.
+            child: ScrollConfiguration(
+              behavior: const _WelcomeScrollBehavior(),
+              child: CustomScrollView(
+                controller: scrollController,
+                primary: false,
+                slivers: [
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 32,
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 510),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.fromLTRB(36, 40, 36, 40),
+                            decoration: BoxDecoration(
+                              color: const Color(0xE60A1916),
+                              border: Border.all(
+                                color: const Color(0xFF1B4D40),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              '把 AI 提示词、SKILL、MCP 配置、网站链接与工作流收进一个可同步的本地 Vault。',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Color(0xFF9BB4AB),
-                                height: 1.55,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text(
-                              '打开时请选择含 .ai-vault.json 的 Vault 根目录。',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Color(0xFF6F9184),
-                                fontSize: 12,
-                              ),
-                            ),
-                            if (errorMessage != null) ...[
-                              const SizedBox(height: 16),
-                              Text(
-                                errorMessage!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFFFFA6A6),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x405DE7A7),
+                                  blurRadius: 24,
                                 ),
-                              ),
-                            ],
-                            if (busy) ...[
-                              const SizedBox(height: 16),
-                              const Text(
-                                '正在选择文件夹…',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Color(0xFF5DE7A7),
-                                  fontSize: 13,
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Image.asset(
+                                  'assets/nightelf-logo.png',
+                                  key: const ValueKey('nightelf-welcome-logo'),
+                                  width: 96,
+                                  height: 96,
+                                  fit: BoxFit.contain,
+                                  semanticLabel: 'Nightelf Logo',
                                 ),
-                              ),
-                            ],
-                            const SizedBox(height: 28),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: WorkbenchButton(
-                                size: WorkbenchButtonSize.lg,
-                                expands: true,
-                                enabled: !busy,
-                                onPressed: busy ? null : onCreate,
-                                child: const Text('创建 Vault'),
-                              ),
+                                const SizedBox(height: 18),
+                                const Text(
+                                  '开启你的暗夜精灵工作台',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFFF2FFF8),
+                                    fontSize: 27,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  '把 AI 提示词、SKILL、MCP 配置、网站链接与工作流收进一个可同步的本地 Vault。',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFF9BB4AB),
+                                    height: 1.55,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Text(
+                                  '打开时请选择含 .ai-vault.json 的 Vault 根目录。',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Color(0xFF6F9184),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                if (errorMessage != null) ...[
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    errorMessage!,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(
+                                      color: Color(0xFFFFA6A6),
+                                    ),
+                                  ),
+                                ],
+                                if (busy) ...[
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    '正在选择文件夹…',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Color(0xFF5DE7A7),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 28),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 48,
+                                  child: WorkbenchButton(
+                                    size: WorkbenchButtonSize.lg,
+                                    expands: true,
+                                    enabled: !busy,
+                                    onPressed: busy ? null : () => onCreate(),
+                                    child: const Text('创建 Vault'),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 48,
+                                  child: WorkbenchButton(
+                                    size: WorkbenchButtonSize.lg,
+                                    variant: WorkbenchButtonVariant.outline,
+                                    expands: true,
+                                    enabled: !busy,
+                                    onPressed: busy ? null : () => onOpen(),
+                                    child: const Text('打开 Vault'),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 14),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: WorkbenchButton(
-                                size: WorkbenchButtonSize.lg,
-                                variant: WorkbenchButtonVariant.outline,
-                                expands: true,
-                                enabled: !busy,
-                                onPressed: busy ? null : onOpen,
-                                child: const Text('打开 Vault'),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
                   ),
-                );
-              },
+                ],
+              ),
             ),
           ),
         ),
       ],
     );
   }
+}
+
+/// Welcome page should not treat mouse movement as scrolling, or button taps
+/// feel unreliable on large desktop windows.
+class _WelcomeScrollBehavior extends ScrollBehavior {
+  const _WelcomeScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => const {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.trackpad,
+  };
 }
