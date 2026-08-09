@@ -169,20 +169,18 @@ class WorkbenchController extends ChangeNotifier {
   }
 
   void replaceResources(List<WorkbenchResource> resources) {
+    final previousDestination = _selectedDestination;
+    final previousSelectedId = _selectedResource?.id;
     _resources
       ..clear()
       ..addAll(resources);
-    if (_selectedResource != null) {
-      _selectedResource = resourceById(_selectedResource!.id);
-    }
+    _selectedDestination = previousDestination;
+    _selectedResource = previousSelectedId == null
+        ? null
+        : resourceById(previousSelectedId);
     if (_selectedResource == null) {
       final matching = selectedResources;
-      _selectedResource = matching.isEmpty
-          ? (_resources.isEmpty ? null : _resources.first)
-          : matching.first;
-      if (_selectedResource != null) {
-        _selectedDestination = _selectedResource!.type;
-      }
+      _selectedResource = matching.isEmpty ? null : matching.first;
     }
     notifyListeners();
   }

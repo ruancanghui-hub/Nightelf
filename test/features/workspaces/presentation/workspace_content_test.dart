@@ -18,7 +18,8 @@ void main() {
     await tester.pumpWidget(
       MacosApp(theme: MacosThemeData.dark(), home: const WorkbenchShell()),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
   }
 
   Finder navigationButton(String label) => find.byWidgetPredicate(

@@ -23,4 +23,35 @@ void main() {
       expect(controller.selectedResource.title, '本地文档 MCP');
     },
   );
+
+  test('replaceResources keeps an empty destination selection', () {
+    final controller = WorkbenchController(
+      resources: const [
+        WorkbenchResource(
+          id: 'prompt-1',
+          type: ResourceType.aiPrompt,
+          title: '提示词',
+          subtitle: '',
+          isFavorite: false,
+        ),
+      ],
+    );
+
+    controller.selectDestination(ResourceType.mcpConfiguration);
+    expect(controller.selectedDestination, ResourceType.mcpConfiguration);
+    expect(controller.selectedResources, isEmpty);
+
+    controller.replaceResources(const [
+      WorkbenchResource(
+        id: 'prompt-1',
+        type: ResourceType.aiPrompt,
+        title: '提示词',
+        subtitle: '',
+        isFavorite: true,
+      ),
+    ]);
+
+    expect(controller.selectedDestination, ResourceType.mcpConfiguration);
+    expect(controller.selectedResources, isEmpty);
+  });
 }

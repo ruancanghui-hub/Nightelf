@@ -47,7 +47,7 @@ void main() {
     expect(find.text('未配置同步'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
-        (widget) => widget is PushButton && widget.semanticLabel == '打开全局搜索',
+        (widget) => widget is PushButton && widget.semanticLabel == '搜索资源',
       ),
       findsOneWidget,
     );

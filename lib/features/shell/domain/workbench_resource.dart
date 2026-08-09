@@ -44,4 +44,19 @@ class WorkbenchResource {
       relativePath: relativePath ?? this.relativePath,
     );
   }
+
+  @override
+  bool operator ==(Object other) {
+    return other is WorkbenchResource &&
+        other.id == id &&
+        other.type == type &&
+        other.title == title &&
+        other.subtitle == subtitle &&
+        other.isFavorite == isFavorite &&
+        other.relativePath == relativePath;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, type, title, subtitle, isFavorite, relativePath);
 }

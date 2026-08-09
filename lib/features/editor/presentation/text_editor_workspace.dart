@@ -133,9 +133,14 @@ class _TextEditorWorkspaceState extends State<TextEditorWorkspace> {
                     Text(widget.title, style: typography.headline),
                     const Spacer(),
                     Text(_statusLabel, style: typography.caption1),
+                    Semantics(
+                      label: '保存状态：$_statusLabel',
+                      child: const SizedBox.shrink(),
+                    ),
                     const SizedBox(width: 12),
                     PushButton(
                       controlSize: ControlSize.small,
+                      semanticLabel: '保存文档',
                       onPressed: readOnly || !widget.session.state.isDirty
                           ? null
                           : () => widget.session.saveNow(),

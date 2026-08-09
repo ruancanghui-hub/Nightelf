@@ -1,5 +1,6 @@
 import 'dart:ui' show Tristate;
 
+import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:flutter/widgets.dart' show Size, SizedBox;
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +42,69 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('资源 ID：mcp-local-docs'), findsOneWidget);
+    await disposeShell(tester);
+  });
+
+  testWidgets('switching destinations updates the right-hand content', (
+    tester,
+  ) async {
+    await pumpShell(tester);
+
+    for (final entry in {
+      '导航：SKILL 文件夹': '资源 ID：skill-product-copy',
+      '导航：MCP 配置': '资源 ID：mcp-local-docs',
+      '导航：网站链接': '资源 ID：link-apple-hig',
+      '导航：AI 提示词': '资源 ID：prompt-release-notes',
+    }.entries) {
+      await tester.tap(
+        find.byWidgetPredicate(
+          (widget) => widget is PushButton && widget.semanticLabel == entry.key,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1));
+      expect(find.text(entry.value), findsOneWidget);
+    }
+
+    await disposeShell(tester);
+  });
+
+  testWidgets('empty destination clears the right-hand content', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1440, 1024));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MacosApp(
+        theme: MacosThemeData.light(),
+        home: WorkbenchShell(
+          resources: const [
+            WorkbenchResource(
+              id: 'prompt-1',
+              type: ResourceType.aiPrompt,
+              title: '仅提示词',
+              subtitle: '',
+              isFavorite: false,
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+
+    expect(find.text('资源 ID：prompt-1'), findsOneWidget);
+
+    await tester.tap(
+      find.byWidgetPredicate(
+        (widget) => widget is PushButton && widget.semanticLabel == '导航：网站链接',
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+
+    expect(find.text('选择资源以查看详细信息'), findsOneWidget);
+    expect(find.text('资源 ID：prompt-1'), findsNothing);
     await disposeShell(tester);
   });
 

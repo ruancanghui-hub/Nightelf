@@ -23,6 +23,8 @@ class WorkspaceContent extends StatelessWidget {
     this.metadataController,
     this.allResources = const [],
     this.onOpenRelated,
+    this.showInspector = true,
+    this.contentFocusNode,
     super.key,
   });
 
@@ -32,6 +34,8 @@ class WorkspaceContent extends StatelessWidget {
   final MetadataController? metadataController;
   final List<WorkbenchResource> allResources;
   final ValueChanged<WorkbenchResource>? onOpenRelated;
+  final bool showInspector;
+  final FocusNode? contentFocusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -69,68 +73,74 @@ class WorkspaceContent extends StatelessWidget {
           left: BorderSide(color: MacosTheme.of(context).dividerColor),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _WorkspaceHeader(resource: resource, presentation: presentation),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final surface = descriptor == null
-                    ? presentation.surface
-                    : _LiveDocumentEditor(
-                        key: ValueKey(
-                          '${resource.id}:${descriptor.absolutePath}',
-                        ),
-                        descriptor: descriptor,
-                        title: _editorTitleFor(resource.type),
-                      );
+      child: Focus(
+        focusNode: contentFocusNode,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _WorkspaceHeader(resource: resource, presentation: presentation),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final surface = descriptor == null
+                      ? presentation.surface
+                      : _LiveDocumentEditor(
+                          key: ValueKey(
+                            '${resource.id}:${descriptor.absolutePath}',
+                          ),
+                          descriptor: descriptor,
+                          title: _editorTitleFor(resource.type),
+                        );
 
-                if (constraints.maxWidth < 680) {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        if (descriptor == null)
-                          surface
-                        else
-                          SizedBox(height: 420, child: surface),
-                        const SizedBox(height: 16),
-                        _buildInspector(
+                  final inspector = showInspector
+                      ? _buildInspector(
                           resource: resource,
                           presentation: presentation,
+                        )
+                      : null;
+
+                  if (!showInspector || constraints.maxWidth < 680) {
+                    return SingleChildScrollView(
+                      padding: const EdgeInsets.all(18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (descriptor == null)
+                            surface
+                          else
+                            SizedBox(height: 420, child: surface),
+                          if (inspector != null) ...[
+                            const SizedBox(height: 16),
+                            inspector,
+                          ],
+                        ],
+                      ),
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: surface,
                         ),
-                      ],
-                    ),
+                      ),
+                      SizedBox(
+                        width: 280,
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(0, 24, 24, 24),
+                          child: inspector,
+                        ),
+                      ),
+                    ],
                   );
-                }
-
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: surface,
-                      ),
-                    ),
-                    SizedBox(
-                      width: 280,
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(0, 24, 24, 24),
-                        child: _buildInspector(
-                          resource: resource,
-                          presentation: presentation,
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

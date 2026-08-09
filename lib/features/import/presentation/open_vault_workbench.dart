@@ -6,6 +6,7 @@ import 'package:ai_workbench/features/import/presentation/import_review_sheet.da
 import 'package:ai_workbench/features/import/presentation/vault_drop_target.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/data/json_metadata_repository.dart';
+import 'package:ai_workbench/features/shell/data/workspace_restoration_repository.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart'
     as shell;
 import 'package:ai_workbench/features/shell/domain/workbench_resource_mapper.dart';
@@ -177,10 +178,15 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                   resources: resources,
                   vaultRootPath: widget.openState.handle.root.path,
                   onDestinationChanged: (type) {
-                    setState(() => _preferredShellType = type);
+                    // Avoid rebuilding resources on every sidebar tap; that used
+                    // to race replaceResources and snap the destination back.
+                    _preferredShellType = type;
                   },
                   onToggleFavorite: _toggleFavorite,
                   metadataController: _metadataController,
+                  restorationRepository: WorkspaceRestorationRepository(
+                    vaultRoot: widget.openState.handle.root,
+                  ),
                 ),
               ),
             ],
