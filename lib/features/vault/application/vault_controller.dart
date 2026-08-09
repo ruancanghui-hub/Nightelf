@@ -45,6 +45,12 @@ class VaultController extends ChangeNotifier {
     }
 
     final root = Directory(path);
+    if (!await root.exists()) {
+      await _settings.writeLastVaultPath(null);
+      _setState(const VaultClosed());
+      return;
+    }
+
     try {
       await _openRoot(root, remember: true);
     } catch (_) {
@@ -87,9 +93,19 @@ class VaultController extends ChangeNotifier {
       return;
     }
     // Phase 1: full rescan is acceptable; paths reserved for later optimization.
-    final resources = await _scan(current.handle);
-    await _index.rebuild(resources);
-    _setState(VaultOpen(handle: current.handle, resources: resources));
+    try {
+      if (!await current.handle.root.exists()) {
+        await closeVault();
+        return;
+      }
+      final resources = await _scan(current.handle);
+      await _index.rebuild(resources);
+      _setState(VaultOpen(handle: current.handle, resources: resources));
+    } on PathNotFoundException {
+      await closeVault();
+    } on FileSystemException {
+      await closeVault();
+    }
   }
 
   @override

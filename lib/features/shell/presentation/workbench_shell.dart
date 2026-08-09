@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:ai_workbench/features/command_palette/domain/workbench_command.dart';
 import 'package:ai_workbench/features/command_palette/presentation/command_palette.dart';
@@ -49,7 +50,7 @@ class WorkbenchShell extends StatefulWidget {
     this.onPasteLink,
     this.onCreateWorkflow,
     this.onImportWorkflow,
-    this.onPromptRenamed,
+    this.onRenamed,
   });
 
   final List<WorkbenchResource>? resources;
@@ -71,7 +72,7 @@ class WorkbenchShell extends StatefulWidget {
   final Future<void> Function()? onPasteLink;
   final Future<void> Function()? onCreateWorkflow;
   final Future<void> Function()? onImportWorkflow;
-  final Future<void> Function(String relativePath)? onPromptRenamed;
+  final Future<void> Function(String relativePath)? onRenamed;
 
   @override
   State<WorkbenchShell> createState() => WorkbenchShellState();
@@ -236,16 +237,20 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     if (repo == null) {
       return;
     }
-    await repo.save(
-      WorkspaceRestorationState(
-        openResourceIds: _tabsController.tabs
-            .map((tab) => tab.resourceId)
-            .toList(growable: false),
-        activeResourceId: _tabsController.activeResourceId,
-        sidebarWidth: _sidebarWidth,
-        inspectorVisible: _inspectorVisible,
-      ),
-    );
+    try {
+      await repo.save(
+        WorkspaceRestorationState(
+          openResourceIds: _tabsController.tabs
+              .map((tab) => tab.resourceId)
+              .toList(growable: false),
+          activeResourceId: _tabsController.activeResourceId,
+          sidebarWidth: _sidebarWidth,
+          inspectorVisible: _inspectorVisible,
+        ),
+      );
+    } on FileSystemException {
+      // Vault may have been deleted or moved; ignore local chrome persistence.
+    }
   }
 
   WorkspaceTab _tabFor(WorkbenchResource resource) => WorkspaceTab(
@@ -516,6 +521,8 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                         controller: _controller,
                                         compact: compactSidebar,
                                         focusNode: _sidebarFocusNode,
+                                        activeResourceId:
+                                            _tabsController.activeResourceId,
                                         onDestinationSelected:
                                             _selectDestination,
                                         onResourceSelected: _openResource,
@@ -609,8 +616,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                     widget.linkController,
                                                 workflowController:
                                                     widget.workflowController,
-                                                onPromptRenamed:
-                                                    widget.onPromptRenamed,
+                                                onRenamed: widget.onRenamed,
                                                 allResources:
                                                     _controller.allResources,
                                                 onOpenRelated: _openResource,

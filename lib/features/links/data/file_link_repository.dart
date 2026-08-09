@@ -39,6 +39,7 @@ class FileLinkRepository implements LinkRepository {
     String description = '',
     List<String> tags = const [],
     String notes = '',
+    bool floatingBubble = false,
   }) async {
     await _linksDir.create(recursive: true);
     final relativePath = await _allocateRelativePath(title);
@@ -50,6 +51,7 @@ class FileLinkRepository implements LinkRepository {
       tags: tags,
       notes: notes,
       relativePath: relativePath,
+      floatingBubble: floatingBubble,
     );
     return save(document);
   }
@@ -74,8 +76,67 @@ class FileLinkRepository implements LinkRepository {
     final title = '${source.title} 副本';
     final nextPath = await _allocateRelativePath(title);
     return save(
-      source.copyWith(id: _idFactory(), title: title, relativePath: nextPath),
+      source.copyWith(
+        id: _idFactory(),
+        title: title,
+        relativePath: nextPath,
+        floatingBubble: false,
+      ),
     );
+  }
+
+  @override
+  Future<LinkDocument> rename(
+    String relativePath, {
+    required String title,
+    Uri? uri,
+    String? notes,
+    bool? floatingBubble,
+  }) async {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('标题不能为空');
+    }
+    final source = await read(relativePath);
+    final nextPath = await _allocateRelativePath(
+      trimmed,
+      excluding: relativePath,
+    );
+    final renamed = source.copyWith(
+      title: trimmed,
+      uri: uri ?? source.uri,
+      notes: notes ?? source.notes,
+      floatingBubble: floatingBubble ?? source.floatingBubble,
+      relativePath: nextPath,
+    );
+    await save(renamed);
+    if (nextPath != relativePath) {
+      final oldFile = File(p.join(_vaultRoot.path, relativePath));
+      if (await oldFile.exists()) {
+        await oldFile.delete();
+      }
+    }
+    return renamed;
+  }
+
+  @override
+  Future<List<LinkDocument>> listAll() async {
+    if (!await _linksDir.exists()) {
+      return const [];
+    }
+    final documents = <LinkDocument>[];
+    await for (final entity in _linksDir.list(followLinks: false)) {
+      if (entity is! File) {
+        continue;
+      }
+      if (p.extension(entity.path).toLowerCase() != '.md') {
+        continue;
+      }
+      final relative = p.relative(entity.path, from: _vaultRoot.path);
+      documents.add(await read(relative));
+    }
+    documents.sort((a, b) => a.title.compareTo(b.title));
+    return documents;
   }
 
   @override
@@ -99,15 +160,23 @@ class FileLinkRepository implements LinkRepository {
     return p.relative(destination.path, from: _vaultRoot.path);
   }
 
-  Future<String> _allocateRelativePath(String title) async {
+  Future<String> _allocateRelativePath(
+    String title, {
+    String? excluding,
+  }) async {
     final base = slugifyLinkTitle(title);
     var candidate = 'links/$base.md';
     var index = 2;
-    while (await File(p.join(_vaultRoot.path, candidate)).exists()) {
+    while (true) {
+      if (candidate == excluding) {
+        return candidate;
+      }
+      if (!await File(p.join(_vaultRoot.path, candidate)).exists()) {
+        return candidate;
+      }
       candidate = 'links/$base-$index.md';
       index += 1;
     }
-    return candidate;
   }
 }
 

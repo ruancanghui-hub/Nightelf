@@ -98,6 +98,37 @@ class FileMcpRepository implements McpRepository {
   }
 
   @override
+  Future<McpDocument> rename(
+    String relativePath, {
+    required String title,
+    String? jsonText,
+  }) async {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('标题不能为空');
+    }
+    final source = await read(relativePath);
+    final nextPath = await _allocateRelativePath(
+      trimmed,
+      excluding: relativePath,
+    );
+    final renamed = source.copyWith(
+      title: trimmed,
+      jsonText: jsonText ?? source.jsonText,
+      relativePath: nextPath,
+    );
+    await save(renamed);
+    if (nextPath != relativePath) {
+      final oldFile = File(p.join(_vaultRoot.path, relativePath));
+      if (await oldFile.exists()) {
+        await oldFile.delete();
+      }
+      await _removeMetadataEntry(relativePath);
+    }
+    return renamed;
+  }
+
+  @override
   Future<String> moveToTrash(String relativePath) async {
     final source = File(p.join(_vaultRoot.path, relativePath));
     if (!await source.exists()) {
@@ -118,15 +149,23 @@ class FileMcpRepository implements McpRepository {
     return p.relative(destination.path, from: _vaultRoot.path);
   }
 
-  Future<String> _allocateRelativePath(String title) async {
+  Future<String> _allocateRelativePath(
+    String title, {
+    String? excluding,
+  }) async {
     final base = slugifyMcpTitle(title);
     var candidate = 'mcp/$base.json';
     var index = 2;
-    while (await File(p.join(_vaultRoot.path, candidate)).exists()) {
+    while (true) {
+      if (candidate == excluding) {
+        return candidate;
+      }
+      if (!await File(p.join(_vaultRoot.path, candidate)).exists()) {
+        return candidate;
+      }
       candidate = 'mcp/$base-$index.json';
       index += 1;
     }
-    return candidate;
   }
 
   Future<Map<String, Object?>?> _readMetadataEntry(String relativePath) async {
@@ -158,6 +197,21 @@ class FileMcpRepository implements McpRepository {
     };
     root['documents'] = documents;
     root['version'] = 1;
+    await _persistMetadataRoot(root);
+  }
+
+  Future<void> _removeMetadataEntry(String relativePath) async {
+    final root = await _loadMetadataRoot();
+    final documents = Map<String, Object?>.from(
+      (root['documents'] as Map<String, Object?>?) ?? const {},
+    );
+    documents.remove(relativePath);
+    root['documents'] = documents;
+    root['version'] = 1;
+    await _persistMetadataRoot(root);
+  }
+
+  Future<void> _persistMetadataRoot(Map<String, Object?> root) async {
     await _metadataFile.parent.create(recursive: true);
     await _writer.writeString(
       _metadataFile,

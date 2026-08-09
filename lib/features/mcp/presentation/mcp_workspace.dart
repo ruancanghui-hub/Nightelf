@@ -5,10 +5,16 @@ import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 class McpWorkspace extends StatelessWidget {
-  const McpWorkspace({super.key, this.controller, this.fallback});
+  const McpWorkspace({
+    super.key,
+    this.controller,
+    this.fallback,
+    this.onRenamed,
+  });
 
   final McpController? controller;
   final Widget? fallback;
+  final Future<void> Function(String relativePath)? onRenamed;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +33,7 @@ class McpWorkspace extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _McpTitleBar(controller: controller, onRenamed: onRenamed),
             _McpActionsBar(controller: controller),
             if (controller.diagnostic != null)
               _DiagnosticBanner(diagnostic: controller.diagnostic!),
@@ -36,6 +43,80 @@ class McpWorkspace extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _McpTitleBar extends StatefulWidget {
+  const _McpTitleBar({required this.controller, this.onRenamed});
+
+  final McpController controller;
+  final Future<void> Function(String relativePath)? onRenamed;
+
+  @override
+  State<_McpTitleBar> createState() => _McpTitleBarState();
+}
+
+class _McpTitleBarState extends State<_McpTitleBar> {
+  late final TextEditingController _titleController;
+  String? _boundDocumentId;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(
+      text: widget.controller.document?.title ?? '',
+    );
+    _boundDocumentId = widget.controller.document?.id;
+  }
+
+  @override
+  void didUpdateWidget(covariant _McpTitleBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final document = widget.controller.document;
+    if (document != null && document.id != _boundDocumentId) {
+      _boundDocumentId = document.id;
+      _titleController.text = document.title;
+    }
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _saveTitle() async {
+    final renamed = await widget.controller.rename(_titleController.text);
+    await widget.onRenamed?.call(renamed.relativePath);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Semantics(
+              label: 'MCP 标题',
+              textField: true,
+              child: MacosTextField(
+                controller: _titleController,
+                placeholder: '输入标题',
+                onSubmitted: (_) => _saveTitle(),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          PushButton(
+            controlSize: ControlSize.small,
+            semanticLabel: '保存标题',
+            onPressed: widget.controller.document == null ? null : _saveTitle,
+            child: const Text('保存标题'),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,12 +1,19 @@
 import 'package:ai_workbench/features/links/application/link_controller.dart';
+import 'package:ai_workbench/features/links/presentation/link_in_app_browser.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 class LinkWorkspace extends StatelessWidget {
-  const LinkWorkspace({super.key, this.controller, this.fallback});
+  const LinkWorkspace({
+    super.key,
+    this.controller,
+    this.fallback,
+    this.onRenamed,
+  });
 
   final LinkController? controller;
   final Widget? fallback;
+  final Future<void> Function(String relativePath)? onRenamed;
 
   @override
   Widget build(BuildContext context) {
@@ -20,16 +27,17 @@ class LinkWorkspace extends StatelessWidget {
         if (controller.document == null) {
           return fallback ?? const _MockLinkSurface();
         }
-        return _LinkEditor(controller: controller);
+        return _LinkEditor(controller: controller, onRenamed: onRenamed);
       },
     );
   }
 }
 
 class _LinkEditor extends StatefulWidget {
-  const _LinkEditor({required this.controller});
+  const _LinkEditor({required this.controller, this.onRenamed});
 
   final LinkController controller;
+  final Future<void> Function(String relativePath)? onRenamed;
 
   @override
   State<_LinkEditor> createState() => _LinkEditorState();
@@ -37,17 +45,20 @@ class _LinkEditor extends StatefulWidget {
 
 class _LinkEditorState extends State<_LinkEditor> {
   late final TextEditingController _urlController;
-  late final TextEditingController _notesController;
+  late final TextEditingController _titleController;
   String? _boundId;
+  String _browserUrl = '';
 
   @override
   void initState() {
     super.initState();
-    _urlController = TextEditingController(text: widget.controller.draftUrl);
-    _notesController = TextEditingController(
-      text: widget.controller.draftNotes,
+    _titleController = TextEditingController(
+      text: widget.controller.document?.title ?? '',
     );
+    _urlController = TextEditingController(text: widget.controller.draftUrl);
     _boundId = widget.controller.document?.id;
+    _browserUrl = widget.controller.document?.uri.toString() ??
+        widget.controller.draftUrl;
   }
 
   @override
@@ -56,16 +67,36 @@ class _LinkEditorState extends State<_LinkEditor> {
     final id = widget.controller.document?.id;
     if (id != null && id != _boundId) {
       _boundId = id;
+      _titleController.text = widget.controller.document?.title ?? '';
       _urlController.text = widget.controller.draftUrl;
-      _notesController.text = widget.controller.draftNotes;
+      _browserUrl = widget.controller.document?.uri.toString() ??
+          widget.controller.draftUrl;
     }
   }
 
   @override
   void dispose() {
+    _titleController.dispose();
     _urlController.dispose();
-    _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveTitle() async {
+    final renamed = await widget.controller.rename(_titleController.text);
+    await widget.onRenamed?.call(renamed.relativePath);
+  }
+
+  Future<void> _saveAndBrowse() async {
+    await widget.controller.save();
+    final document = widget.controller.document;
+    if (document == null) {
+      return;
+    }
+    setState(() => _browserUrl = document.uri.toString());
+  }
+
+  void _browseDraft() {
+    setState(() => _browserUrl = _urlController.text.trim());
   }
 
   @override
@@ -75,6 +106,29 @@ class _LinkEditorState extends State<_LinkEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Row(
+          children: [
+            Expanded(
+              child: Semantics(
+                label: '网站链接标题',
+                textField: true,
+                child: MacosTextField(
+                  controller: _titleController,
+                  placeholder: '输入标题',
+                  onSubmitted: (_) => _saveTitle(),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            PushButton(
+              controlSize: ControlSize.small,
+              semanticLabel: '保存标题',
+              onPressed: _saveTitle,
+              child: const Text('保存标题'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -89,9 +143,16 @@ class _LinkEditorState extends State<_LinkEditor> {
             PushButton(
               controlSize: ControlSize.small,
               secondary: true,
-              semanticLabel: '保存链接',
-              onPressed: () => controller.save(),
-              child: const Text('保存'),
+              semanticLabel: '保存并在内置浏览器打开',
+              onPressed: _saveAndBrowse,
+              child: const Text('保存并打开'),
+            ),
+            PushButton(
+              controlSize: ControlSize.small,
+              secondary: true,
+              semanticLabel: '在内置浏览器打开当前地址',
+              onPressed: _browseDraft,
+              child: const Text('打开'),
             ),
             PushButton(
               controlSize: ControlSize.small,
@@ -99,6 +160,17 @@ class _LinkEditorState extends State<_LinkEditor> {
               semanticLabel: '在外部浏览器打开',
               onPressed: () => controller.openExternally(),
               child: const Text('外部浏览器'),
+            ),
+            PushButton(
+              controlSize: ControlSize.small,
+              semanticLabel: controller.isFloatingBubble
+                  ? '关闭桌面悬浮球'
+                  : '设为桌面悬浮球',
+              onPressed: () =>
+                  controller.setFloatingBubble(!controller.isFloatingBubble),
+              child: Text(
+                controller.isFloatingBubble ? '关闭悬浮球' : '设为悬浮球',
+              ),
             ),
             PushButton(
               controlSize: ControlSize.small,
@@ -142,21 +214,15 @@ class _LinkEditorState extends State<_LinkEditor> {
             controller: _urlController,
             placeholder: 'https://example.com',
             onChanged: controller.updateDraftUrl,
+            onSubmitted: (_) => _saveAndBrowse(),
           ),
         ),
         const SizedBox(height: 12),
-        Text('备注', style: typography.headline),
-        const SizedBox(height: 6),
         Expanded(
-          child: Semantics(
-            label: '网站链接备注',
-            textField: true,
-            child: MacosTextField(
-              controller: _notesController,
-              placeholder: '可选备注',
-              maxLines: null,
-              onChanged: controller.updateDraftNotes,
-            ),
+          child: LinkInAppBrowser(
+            key: ValueKey(_boundId ?? _browserUrl),
+            url: _browserUrl,
+            onExternalScheme: controller.openExternalUri,
           ),
         ),
       ],
@@ -178,7 +244,7 @@ class _MockLinkSurface extends StatelessWidget {
         border: Border.all(color: MacosTheme.of(context).dividerColor),
       ),
       child: Text(
-        '打开或粘贴一个网站链接以开始。',
+        '打开或粘贴一个网站链接以在内置浏览器中查看。',
         style: MacosTheme.of(context).typography.body,
       ),
     );

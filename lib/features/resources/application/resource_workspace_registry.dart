@@ -22,24 +22,29 @@ class ResourceWorkspaceRegistry {
     McpController? mcpController,
     LinkController? linkController,
     WorkflowController? workflowController,
-    Future<void> Function(String relativePath)? onPromptRenamed,
+    Future<void> Function(String relativePath)? onRenamed,
   }) {
     return switch (resource.type) {
       ResourceType.aiPrompt when promptController != null => PromptWorkspace(
         controller: promptController,
-        onRenamed: onPromptRenamed,
+        onRenamed: onRenamed,
       ),
       ResourceType.skillFolder when skillController != null => SkillWorkspace(
         controller: skillController,
       ),
       ResourceType.mcpConfiguration when mcpController != null => McpWorkspace(
         controller: mcpController,
+        onRenamed: onRenamed,
       ),
       ResourceType.websiteLink when linkController != null => LinkWorkspace(
         controller: linkController,
+        onRenamed: onRenamed,
       ),
       ResourceType.workflowFile when workflowController != null =>
-        WorkflowWorkspace(controller: workflowController),
+        WorkflowWorkspace(
+          controller: workflowController,
+          onRenamed: onRenamed,
+        ),
       _ => null,
     };
   }

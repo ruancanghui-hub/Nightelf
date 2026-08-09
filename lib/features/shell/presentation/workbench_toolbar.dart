@@ -32,7 +32,7 @@ class WorkbenchToolbar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('我的 AI 工作台', style: colors.headline),
+              Text('暗夜精灵-AI定制工作台', style: colors.headline),
               Text('AI Workbench', style: colors.caption1),
             ],
           ),

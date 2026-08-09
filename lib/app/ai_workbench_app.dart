@@ -6,8 +6,10 @@ import 'package:ai_workbench/features/import/presentation/open_vault_workbench.d
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/vault/application/vault_controller.dart';
 import 'package:ai_workbench/features/vault/application/vault_state.dart';
+import 'package:ai_workbench/shared/platform/directory_picker_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' show ThemeMode;
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macos_ui/macos_ui.dart';
@@ -19,6 +21,7 @@ class AiWorkbenchApp extends ConsumerStatefulWidget {
     this.themeMode = ThemeMode.dark,
     this.hasVault = false,
     this.skipRestore = false,
+    this.directoryPicker,
   });
 
   final ThemeMode themeMode;
@@ -26,15 +29,21 @@ class AiWorkbenchApp extends ConsumerStatefulWidget {
   /// Test-only override: when true, show the shell without a live controller.
   final bool hasVault;
   final bool skipRestore;
+  final DirectoryPickerService? directoryPicker;
 
   @override
   ConsumerState<AiWorkbenchApp> createState() => _AiWorkbenchAppState();
 }
 
 class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
+  late final DirectoryPickerService _directoryPicker;
+  var _pickingDirectory = false;
+
   @override
   void initState() {
     super.initState();
+    _directoryPicker =
+        widget.directoryPicker ?? defaultDirectoryPickerService();
     if (!widget.hasVault && !widget.skipRestore) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         ref.read(vaultControllerProvider).restoreLastVault();
@@ -47,7 +56,7 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     final controller = ref.watch(vaultControllerProvider);
 
     return MacosApp(
-      title: 'AI Workbench',
+      title: '暗夜精灵-AI定制工作台',
       debugShowCheckedModeBanner: false,
       themeMode: widget.themeMode,
       theme: WorkbenchTheme.light(),
@@ -82,8 +91,9 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
   }
 
   Future<void> _createVault(VaultController controller) async {
-    final path = await FilePicker.getDirectoryPath(
-      dialogTitle: '选择用于创建 Vault 的文件夹',
+    final path = await _pickDirectory(
+      dialogTitle: '选择用于创建 Vault 的文件夹（将直接作为资源库根目录）',
+      allowCreate: true,
     );
     if (path == null) {
       return;
@@ -94,13 +104,67 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
   }
 
   Future<void> _openVault(VaultController controller) async {
-    final path = await FilePicker.getDirectoryPath(
-      dialogTitle: '选择要打开的 Vault 文件夹',
+    final path = await _pickDirectory(
+      dialogTitle: '选择要打开的 Vault 文件夹（含 .ai-vault.json 的根目录）',
+      allowCreate: false,
     );
     if (path == null) {
       return;
     }
-    await controller.openVault(Directory(path));
+    final root = await _resolveVaultRoot(Directory(path));
+    await controller.openVault(root);
+  }
+
+  /// If the user picked a typed subfolder (e.g. workflows/), open the parent Vault.
+  Future<Directory> _resolveVaultRoot(Directory selected) async {
+    final marker = File(p.join(selected.path, '.ai-vault.json'));
+    if (await marker.exists()) {
+      return selected;
+    }
+    const typed = {
+      'prompts',
+      'skills',
+      'mcp',
+      'links',
+      'workflows',
+      'assets',
+    };
+    final base = p.basename(selected.path);
+    if (!typed.contains(base)) {
+      return selected;
+    }
+    final parent = selected.parent;
+    final parentMarker = File(p.join(parent.path, '.ai-vault.json'));
+    if (await parentMarker.exists()) {
+      return parent;
+    }
+    return selected;
+  }
+
+  Future<String?> _pickDirectory({
+    required String dialogTitle,
+    required bool allowCreate,
+  }) async {
+    if (_pickingDirectory) {
+      return null;
+    }
+    // Avoid setState during the PushButton tap gesture (macos_ui crashes).
+    _pickingDirectory = true;
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      if (!mounted) {
+        return null;
+      }
+      return _directoryPicker.pickDirectory(
+        dialogTitle: dialogTitle,
+        allowCreate: allowCreate,
+      );
+    } on MissingPluginException {
+      // Hot restart can drop native channels; fall back to file_picker.
+      return FilePicker.getDirectoryPath(dialogTitle: dialogTitle);
+    } finally {
+      _pickingDirectory = false;
+    }
   }
 }
 
@@ -143,9 +207,15 @@ class _WelcomeScaffold extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('打开 AI 工作台'),
+                  const Text('打开暗夜精灵-AI定制工作台'),
                   const SizedBox(height: 8),
                   const Text('每个 Vault 文件夹是独立工作区，收藏与资源互不共享。'),
+                  const SizedBox(height: 8),
+                  Text(
+                    '打开时请选择含 .ai-vault.json 的 Vault 根目录，不要选 workflows 等子文件夹。',
+                    style: MacosTheme.of(context).typography.caption1,
+                    textAlign: TextAlign.center,
+                  ),
                   if (errorMessage != null) ...[
                     const SizedBox(height: 12),
                     Text(errorMessage!),

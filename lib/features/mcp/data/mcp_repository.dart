@@ -14,5 +14,11 @@ abstract interface class McpRepository {
 
   Future<McpDocument> duplicate(String relativePath);
 
+  Future<McpDocument> rename(
+    String relativePath, {
+    required String title,
+    String? jsonText,
+  });
+
   Future<String> moveToTrash(String relativePath);
 }

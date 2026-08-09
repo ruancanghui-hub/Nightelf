@@ -70,14 +70,18 @@ class WorkspaceRestorationRepository {
   }
 
   Future<void> save(WorkspaceRestorationState state) async {
-    await _file.parent.create(recursive: true);
-    final payload = <String, Object?>{
-      'version': _version,
-      'openResourceIds': state.openResourceIds,
-      'activeResourceId': state.activeResourceId,
-      'sidebarWidth': state.sidebarWidth,
-      'inspectorVisible': state.inspectorVisible,
-    };
-    await _writer.writeString(_file, '${jsonEncode(payload)}\n');
+    try {
+      await _file.parent.create(recursive: true);
+      final payload = <String, Object?>{
+        'version': _version,
+        'openResourceIds': state.openResourceIds,
+        'activeResourceId': state.activeResourceId,
+        'sidebarWidth': state.sidebarWidth,
+        'inspectorVisible': state.inspectorVisible,
+      };
+      await _writer.writeString(_file, '${jsonEncode(payload)}\n');
+    } on FileSystemException {
+      // Ignore when the Vault root vanished.
+    }
   }
 }

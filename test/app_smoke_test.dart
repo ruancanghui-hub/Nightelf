@@ -9,7 +9,7 @@ void main() {
     );
     await tester.pump(Duration.zero);
 
-    expect(find.text('打开 AI 工作台'), findsOneWidget);
+    expect(find.text('打开暗夜精灵-AI定制工作台'), findsOneWidget);
     expect(find.text('创建 Vault'), findsOneWidget);
     expect(find.text('打开 Vault'), findsOneWidget);
   });

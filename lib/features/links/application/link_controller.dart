@@ -4,6 +4,7 @@ import 'package:ai_workbench/features/links/data/link_repository.dart';
 import 'package:ai_workbench/features/links/domain/link_document.dart';
 import 'package:ai_workbench/features/links/domain/link_validation.dart';
 import 'package:ai_workbench/shared/platform/clipboard_service.dart';
+import 'package:ai_workbench/shared/platform/floating_bubble_service.dart';
 import 'package:ai_workbench/shared/platform/system_open_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
@@ -14,17 +15,20 @@ class LinkController extends ChangeNotifier {
     required ClipboardService clipboard,
     required SystemOpenService systemOpen,
     required String vaultRootPath,
+    FloatingBubbleService? floatingBubbles,
     LinkValidation? validation,
   }) : _repository = repository,
        _clipboard = clipboard,
        _systemOpen = systemOpen,
        _vaultRootPath = vaultRootPath,
+       _floatingBubbles = floatingBubbles ?? defaultFloatingBubbleService(),
        _validation = validation ?? const LinkValidation();
 
   final LinkRepository _repository;
   final ClipboardService _clipboard;
   final SystemOpenService _systemOpen;
   final String _vaultRootPath;
+  final FloatingBubbleService _floatingBubbles;
   final LinkValidation _validation;
 
   LinkDocument? _document;
@@ -40,6 +44,7 @@ class LinkController extends ChangeNotifier {
   String? get lastTrashPath => _lastTrashPath;
   String? get statusMessage => _statusMessage;
   String? get errorMessage => _errorMessage;
+  bool get isFloatingBubble => _document?.floatingBubble ?? false;
 
   Future<void> open(String relativePath) async {
     _document = await _repository.read(relativePath);
@@ -120,7 +125,73 @@ class LinkController extends ChangeNotifier {
     _draftNotes = _document!.notes;
     _errorMessage = null;
     _statusMessage = '已保存';
+    if (_document!.floatingBubble) {
+      await _syncBubble(_document!);
+    }
     notifyListeners();
+  }
+
+  Future<LinkDocument> rename(String title) async {
+    final document = _requireDocument();
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('标题不能为空');
+    }
+    final validated = _validation.validate(draftUrl);
+    if (!validated.isValid) {
+      _errorMessage = validated.error;
+      notifyListeners();
+      throw StateError(validated.error!);
+    }
+    final renamed = await _repository.rename(
+      document.relativePath,
+      title: trimmed,
+      uri: validated.uri,
+      notes: draftNotes,
+      floatingBubble: document.floatingBubble,
+    );
+    await open(renamed.relativePath);
+    if (renamed.floatingBubble) {
+      await _syncBubble(renamed);
+    }
+    _statusMessage = '已更新标题';
+    notifyListeners();
+    return renamed;
+  }
+
+  Future<void> setFloatingBubble(bool enabled) async {
+    final document = _requireDocument();
+    final validated = _validation.validate(draftUrl);
+    if (!validated.isValid) {
+      _errorMessage = validated.error;
+      notifyListeners();
+      return;
+    }
+    final updated = await _repository.save(
+      document.copyWith(
+        uri: validated.uri!,
+        notes: draftNotes,
+        floatingBubble: enabled,
+      ),
+    );
+    _document = updated;
+    _draftUrl = updated.uri.toString();
+    _draftNotes = updated.notes;
+    if (enabled) {
+      await _syncBubble(updated);
+      _statusMessage = '已开启桌面悬浮球';
+    } else {
+      await _floatingBubbles.hide(updated.id);
+      _statusMessage = '已关闭桌面悬浮球';
+    }
+    notifyListeners();
+  }
+
+  Future<void> restoreFloatingBubbles() async {
+    final documents = await _repository.listAll();
+    for (final document in documents.where((d) => d.floatingBubble)) {
+      await _syncBubble(document);
+    }
   }
 
   Future<void> copyUrl() async {
@@ -151,6 +222,12 @@ class LinkController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> openExternalUri(Uri uri) async {
+    await _systemOpen.openExternalUrl(uri);
+    _statusMessage = '已打开外部应用链接';
+    notifyListeners();
+  }
+
   Future<LinkDocument> duplicate() async {
     final document = _requireDocument();
     await save();
@@ -163,6 +240,9 @@ class LinkController extends ChangeNotifier {
 
   Future<String> moveToTrash() async {
     final document = _requireDocument();
+    if (document.floatingBubble) {
+      await _floatingBubbles.hide(document.id);
+    }
     final trashPath = await _repository.moveToTrash(document.relativePath);
     _document = null;
     _draftUrl = null;
@@ -189,9 +269,20 @@ class LinkController extends ChangeNotifier {
     await source.rename(destination.path);
     _lastTrashPath = null;
     await open(restoredRelative);
+    if (_document?.floatingBubble ?? false) {
+      await _syncBubble(_document!);
+    }
     _statusMessage = '已撤销回收';
     notifyListeners();
     return _document!;
+  }
+
+  Future<void> _syncBubble(LinkDocument document) async {
+    await _floatingBubbles.show(
+      id: document.id,
+      title: document.title,
+      url: document.uri.toString(),
+    );
   }
 
   LinkDocument _requireDocument() {
@@ -200,5 +291,11 @@ class LinkController extends ChangeNotifier {
       throw StateError('尚未打开网站链接');
     }
     return document;
+  }
+
+  @override
+  void dispose() {
+    // Bubbles stay until explicitly closed or app exits.
+    super.dispose();
   }
 }

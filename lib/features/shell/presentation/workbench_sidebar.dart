@@ -12,6 +12,7 @@ class WorkbenchSidebar extends StatelessWidget {
     required this.controller,
     required this.onDestinationSelected,
     this.onResourceSelected,
+    this.activeResourceId,
     this.collections = const [],
     this.onCollectionSelected,
     this.onCreateCollection,
@@ -24,6 +25,7 @@ class WorkbenchSidebar extends StatelessWidget {
   final WorkbenchController controller;
   final ValueChanged<ResourceType> onDestinationSelected;
   final ValueChanged<WorkbenchResource>? onResourceSelected;
+  final String? activeResourceId;
   final List<CollectionRecord> collections;
   final ValueChanged<CollectionRecord?>? onCollectionSelected;
   final VoidCallback? onCreateCollection;
@@ -116,18 +118,14 @@ class WorkbenchSidebar extends StatelessWidget {
                 Text('暂无收藏', style: typography.caption1)
               else
                 for (final resource in controller.favoriteResources.take(8))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: GestureDetector(
-                      onTap: onResourceSelected == null
-                          ? null
-                          : () => onResourceSelected!(resource),
-                      child: Text(
-                        '★ ${resource.title}',
-                        overflow: TextOverflow.ellipsis,
-                        style: typography.body,
-                      ),
-                    ),
+                  _SidebarQuickAccessTile(
+                    key: ValueKey('favorite-${resource.id}'),
+                    label: '★ ${resource.title}',
+                    semanticLabel: '收藏：${resource.title}',
+                    selected: resource.id == activeResourceId,
+                    onTap: onResourceSelected == null
+                        ? null
+                        : () => onResourceSelected!(resource),
                   ),
               const SizedBox(height: 18),
               Text('最近使用', style: typography.subheadline),
@@ -136,21 +134,109 @@ class WorkbenchSidebar extends StatelessWidget {
                 Text('暂无最近使用', style: typography.caption1)
               else
                 for (final resource in controller.recentResources.take(5))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: GestureDetector(
-                      onTap: onResourceSelected == null
-                          ? null
-                          : () => onResourceSelected!(resource),
-                      child: Text(
-                        resource.title,
-                        overflow: TextOverflow.ellipsis,
-                        style: typography.body,
-                      ),
-                    ),
+                  _SidebarQuickAccessTile(
+                    key: ValueKey('recent-${resource.id}'),
+                    label: resource.title,
+                    semanticLabel: '最近使用：${resource.title}',
+                    selected: resource.id == activeResourceId,
+                    onTap: onResourceSelected == null
+                        ? null
+                        : () => onResourceSelected!(resource),
                   ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Clickable quick-access row with hover / pressed / selected feedback.
+class _SidebarQuickAccessTile extends StatefulWidget {
+  const _SidebarQuickAccessTile({
+    required this.label,
+    required this.semanticLabel,
+    required this.selected,
+    this.onTap,
+    super.key,
+  });
+
+  final String label;
+  final String semanticLabel;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  State<_SidebarQuickAccessTile> createState() =>
+      _SidebarQuickAccessTileState();
+}
+
+class _SidebarQuickAccessTileState extends State<_SidebarQuickAccessTile> {
+  var _hovered = false;
+  var _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = MacosTheme.of(context);
+    final typography = theme.typography;
+    final accent = theme.primaryColor;
+    final selected = widget.selected;
+    final highlight = _pressed || selected || _hovered;
+    final background = selected
+        ? accent.withValues(alpha: 0.22)
+        : _pressed
+        ? accent.withValues(alpha: 0.16)
+        : _hovered
+        ? accent.withValues(alpha: 0.10)
+        : const Color(0x00000000);
+    final borderColor = selected || _pressed
+        ? accent.withValues(alpha: 0.55)
+        : const Color(0x00000000);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: MouseRegion(
+        cursor: widget.onTap == null
+            ? SystemMouseCursors.basic
+            : SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() {
+          _hovered = false;
+          _pressed = false;
+        }),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: widget.onTap == null
+              ? null
+              : (_) => setState(() => _pressed = true),
+          onTapCancel: () => setState(() => _pressed = false),
+          onTapUp: (_) => setState(() => _pressed = false),
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 90),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: borderColor),
+            ),
+            child: Semantics(
+              button: true,
+              selected: selected,
+              label: widget.semanticLabel,
+              child: Text(
+                widget.label,
+                overflow: TextOverflow.ellipsis,
+                style: typography.body.copyWith(
+                  fontWeight: selected || _pressed
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                  color: highlight ? accent : null,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

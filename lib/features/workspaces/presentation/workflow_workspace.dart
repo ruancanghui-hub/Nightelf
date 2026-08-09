@@ -4,10 +4,16 @@ import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 class WorkflowWorkspace extends StatelessWidget {
-  const WorkflowWorkspace({super.key, this.controller, this.fallback});
+  const WorkflowWorkspace({
+    super.key,
+    this.controller,
+    this.fallback,
+    this.onRenamed,
+  });
 
   final WorkflowController? controller;
   final Widget? fallback;
+  final Future<void> Function(String relativePath)? onRenamed;
 
   @override
   Widget build(BuildContext context) {
@@ -21,16 +27,20 @@ class WorkflowWorkspace extends StatelessWidget {
         if (controller.document == null) {
           return fallback ?? const _MockWorkflowSurface();
         }
-        return _WorkflowEditor(controller: controller);
+        return _WorkflowEditor(
+          controller: controller,
+          onRenamed: onRenamed,
+        );
       },
     );
   }
 }
 
 class _WorkflowEditor extends StatefulWidget {
-  const _WorkflowEditor({required this.controller});
+  const _WorkflowEditor({required this.controller, this.onRenamed});
 
   final WorkflowController controller;
+  final Future<void> Function(String relativePath)? onRenamed;
 
   @override
   State<_WorkflowEditor> createState() => _WorkflowEditorState();
@@ -38,13 +48,19 @@ class _WorkflowEditor extends StatefulWidget {
 
 class _WorkflowEditorState extends State<_WorkflowEditor> {
   late final TextEditingController _sourceController;
+  late final TextEditingController _titleController;
   String? _boundPath;
+  String? _boundId;
 
   @override
   void initState() {
     super.initState();
     _sourceController = TextEditingController(text: widget.controller.source);
+    _titleController = TextEditingController(
+      text: widget.controller.document?.title ?? '',
+    );
     _boundPath = widget.controller.document?.relativePath;
+    _boundId = widget.controller.document?.id;
     widget.controller.addListener(_syncFromController);
   }
 
@@ -62,11 +78,13 @@ class _WorkflowEditorState extends State<_WorkflowEditor> {
   void dispose() {
     widget.controller.removeListener(_syncFromController);
     _sourceController.dispose();
+    _titleController.dispose();
     super.dispose();
   }
 
   void _syncFromController() {
     final path = widget.controller.document?.relativePath;
+    final id = widget.controller.document?.id;
     final next = widget.controller.source;
     final pathChanged = path != null && path != _boundPath;
     final loadedIntoEmpty =
@@ -80,6 +98,15 @@ class _WorkflowEditorState extends State<_WorkflowEditor> {
         );
       }
     }
+    if (id != null && id != _boundId) {
+      _boundId = id;
+      _titleController.text = widget.controller.document?.title ?? '';
+    }
+  }
+
+  Future<void> _saveTitle() async {
+    final renamed = await widget.controller.rename(_titleController.text);
+    await widget.onRenamed?.call(renamed.relativePath);
   }
 
   @override
@@ -98,12 +125,34 @@ class _WorkflowEditorState extends State<_WorkflowEditor> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  label: 'Workflow 标题',
+                  textField: true,
+                  child: MacosTextField(
+                    controller: _titleController,
+                    placeholder: '输入标题',
+                    onSubmitted: (_) => _saveTitle(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              PushButton(
+                controlSize: ControlSize.small,
+                semanticLabel: '保存标题',
+                onPressed: _saveTitle,
+                child: const Text('保存标题'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(controller.document!.title, style: typography.title2),
               PushButton(
                 controlSize: ControlSize.small,
                 semanticLabel: '源码模式',

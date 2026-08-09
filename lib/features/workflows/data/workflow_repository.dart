@@ -15,6 +15,12 @@ abstract class WorkflowRepository {
 
   Future<WorkflowDocument> duplicate(String relativePath);
 
+  Future<WorkflowDocument> rename(
+    String relativePath, {
+    required String title,
+    String? source,
+  });
+
   Future<String> moveToTrash(String relativePath);
 
   Future<WorkflowDocument> importFile({

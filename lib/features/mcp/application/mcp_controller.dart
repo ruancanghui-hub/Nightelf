@@ -147,6 +147,26 @@ class McpController extends ChangeNotifier {
     return duplicated;
   }
 
+  Future<McpDocument> rename(String title) async {
+    final document = _requireDocument();
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('标题不能为空');
+    }
+    if (_session?.state.isDirty ?? false) {
+      await _session!.saveNow();
+    }
+    final renamed = await _repository.rename(
+      document.relativePath,
+      title: trimmed,
+      jsonText: _session?.text ?? document.jsonText,
+    );
+    await open(renamed.relativePath);
+    _statusMessage = '已更新标题';
+    notifyListeners();
+    return renamed;
+  }
+
   Future<String> moveToTrash() async {
     final document = _requireDocument();
     if (_session?.state.isDirty ?? false) {

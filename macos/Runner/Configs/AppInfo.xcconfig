@@ -4,11 +4,11 @@
 // future. If not, the values below would default to using the project name when this becomes a
 // 'flutter create' template.
 
-// The application's name. By default this is also the title of the Flutter window.
+// Binary / .app folder name (ASCII). Dock/Finder title uses CFBundleDisplayName.
 PRODUCT_NAME = ai_workbench
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.example.aiWorkbench
+PRODUCT_BUNDLE_IDENTIFIER = com.ruancanghui.nightelf
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.example. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 暗夜精灵. All rights reserved.

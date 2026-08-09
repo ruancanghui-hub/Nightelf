@@ -26,6 +26,7 @@ import 'package:ai_workbench/features/workflows/application/workflow_controller.
 import 'package:ai_workbench/features/workflows/data/file_workflow_repository.dart';
 import 'package:ai_workbench/features/workflows/data/json_workflow_layout_repository.dart';
 import 'package:ai_workbench/shared/domain/resource_type.dart';
+import 'package:ai_workbench/shared/platform/directory_picker_service.dart';
 import 'package:ai_workbench/shared/platform/flutter_clipboard_service.dart';
 import 'package:ai_workbench/shared/platform/macos_system_open_service.dart';
 import 'package:file_picker/file_picker.dart';
@@ -84,6 +85,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     _linkController.addListener(_onLinkChanged);
     _workflowController.addListener(_onWorkflowChanged);
     _loadMetadata();
+    unawaited(_linkController.restoreFloatingBubbles());
   }
 
   @override
@@ -124,6 +126,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
         widget.openState.handle.root,
       )..addListener(_onWorkflowChanged);
       _loadMetadata();
+      unawaited(_linkController.restoreFloatingBubbles());
     } else if (!identical(
       oldWidget.openState.resources,
       widget.openState.resources,
@@ -300,12 +303,12 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     }
   }
 
-  Future<void> _onPromptRenamed(String relativePath) async {
+  Future<void> _onResourceRenamed(String relativePath) async {
     await widget.vaultController.refreshPaths({relativePath});
     if (!mounted) {
       return;
     }
-    setState(() => _bannerMessage = '已更新提示词标题');
+    setState(() => _bannerMessage = '已更新标题');
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(
         _shellKey.currentState?.openByRelativePath(relativePath) ??
@@ -333,8 +336,9 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   Future<void> _importSkill() async {
     try {
-      final selected = await FilePicker.getDirectoryPath(
+      final selected = await defaultDirectoryPickerService().pickDirectory(
         dialogTitle: '选择 SKILL 文件夹',
+        allowCreate: false,
       );
       if (selected == null) {
         return;
@@ -498,7 +502,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                   onPasteLink: _pasteLink,
                   onCreateWorkflow: _createWorkflow,
                   onImportWorkflow: _importWorkflow,
-                  onPromptRenamed: _onPromptRenamed,
+                  onRenamed: _onResourceRenamed,
                   restorationRepository: WorkspaceRestorationRepository(
                     vaultRoot: widget.openState.handle.root,
                   ),

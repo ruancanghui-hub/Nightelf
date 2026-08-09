@@ -127,6 +127,27 @@ class WorkflowController extends ChangeNotifier {
     return created;
   }
 
+  Future<WorkflowDocument> rename(String title) async {
+    final document = _requireDocument();
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('标题不能为空');
+    }
+    if (_session?.state.isDirty ?? false) {
+      await _session!.saveNow();
+    }
+    final current = await _repository.read(document.relativePath);
+    final renamed = await _repository.rename(
+      current.relativePath,
+      title: trimmed,
+      source: current.source,
+    );
+    await open(renamed.relativePath);
+    _statusMessage = '已更新标题';
+    notifyListeners();
+    return renamed;
+  }
+
   Future<WorkflowDocument> importFile(String absolutePath) async {
     final imported = await _repository.importFile(absolutePath: absolutePath);
     await open(imported.relativePath);

@@ -32,7 +32,7 @@ class WorkspaceContent extends StatelessWidget {
     this.mcpController,
     this.linkController,
     this.workflowController,
-    this.onPromptRenamed,
+    this.onRenamed,
     this.allResources = const [],
     this.onOpenRelated,
     this.showInspector = true,
@@ -49,7 +49,7 @@ class WorkspaceContent extends StatelessWidget {
   final McpController? mcpController;
   final LinkController? linkController;
   final WorkflowController? workflowController;
-  final Future<void> Function(String relativePath)? onPromptRenamed;
+  final Future<void> Function(String relativePath)? onRenamed;
   final List<WorkbenchResource> allResources;
   final ValueChanged<WorkbenchResource>? onOpenRelated;
   final bool showInspector;
@@ -109,7 +109,7 @@ class WorkspaceContent extends StatelessWidget {
                           mcpController: mcpController,
                           linkController: linkController,
                           workflowController: workflowController,
-                          onPromptRenamed: onPromptRenamed,
+                          onRenamed: onRenamed,
                         )
                       : null;
                   final surface =

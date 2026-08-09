@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 void main() {
-  testWidgets('renders the AI Workbench application title', (tester) async {
+  testWidgets('renders the Nightelf application title', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: AiWorkbenchApp(hasVault: true, skipRestore: true),
@@ -17,9 +17,9 @@ void main() {
 
     expect(
       tester.widget<MacosApp>(find.byType(MacosApp)).title,
-      'AI Workbench',
+      '暗夜精灵-AI定制工作台',
     );
-    expect(find.text('AI Workbench'), findsOneWidget);
+    expect(find.text('暗夜精灵-AI定制工作台'), findsOneWidget);
   });
 
   testWidgets('uses the dark workbench theme by default', (tester) async {
@@ -48,7 +48,7 @@ void main() {
     );
     await tester.pump(Duration.zero);
 
-    expect(find.text('AI Workbench'), findsOneWidget);
+    expect(find.text('暗夜精灵-AI定制工作台'), findsOneWidget);
   });
 
   test('provides distinct dark and light macOS theme tokens', () {

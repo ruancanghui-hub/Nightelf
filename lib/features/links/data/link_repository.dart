@@ -7,6 +7,7 @@ abstract interface class LinkRepository {
     String description = '',
     List<String> tags = const [],
     String notes = '',
+    bool floatingBubble = false,
   });
 
   Future<LinkDocument> read(String relativePath);
@@ -14,6 +15,16 @@ abstract interface class LinkRepository {
   Future<LinkDocument> save(LinkDocument document);
 
   Future<LinkDocument> duplicate(String relativePath);
+
+  Future<LinkDocument> rename(
+    String relativePath, {
+    required String title,
+    Uri? uri,
+    String? notes,
+    bool? floatingBubble,
+  });
+
+  Future<List<LinkDocument>> listAll();
 
   Future<String> moveToTrash(String relativePath);
 }

@@ -7,6 +7,7 @@ class LinkDocument {
     required this.tags,
     required this.notes,
     required this.relativePath,
+    this.floatingBubble = false,
   });
 
   final String id;
@@ -16,6 +17,7 @@ class LinkDocument {
   final List<String> tags;
   final String notes;
   final String relativePath;
+  final bool floatingBubble;
 
   LinkDocument copyWith({
     String? id,
@@ -25,6 +27,7 @@ class LinkDocument {
     List<String>? tags,
     String? notes,
     String? relativePath,
+    bool? floatingBubble,
   }) {
     return LinkDocument(
       id: id ?? this.id,
@@ -34,6 +37,7 @@ class LinkDocument {
       tags: tags ?? this.tags,
       notes: notes ?? this.notes,
       relativePath: relativePath ?? this.relativePath,
+      floatingBubble: floatingBubble ?? this.floatingBubble,
     );
   }
 
@@ -46,7 +50,8 @@ class LinkDocument {
         other.description == description &&
         _listEquals(other.tags, tags) &&
         other.notes == notes &&
-        other.relativePath == relativePath;
+        other.relativePath == relativePath &&
+        other.floatingBubble == floatingBubble;
   }
 
   @override
@@ -58,6 +63,7 @@ class LinkDocument {
     Object.hashAll(tags),
     notes,
     relativePath,
+    floatingBubble,
   );
 }
 

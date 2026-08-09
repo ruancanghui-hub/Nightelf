@@ -15,7 +15,29 @@ class AtomicFileWriter {
     await target.parent.create(recursive: true);
     final temporary = File('${target.path}.nightelf-tmp');
     await _writeTemporaryFile(temporary, contents);
-    await temporary.rename(target.path);
+    try {
+      // Parent can disappear if the Vault folder was deleted mid-write.
+      await target.parent.create(recursive: true);
+      await temporary.rename(target.path);
+    } on PathNotFoundException {
+      if (!await temporary.exists()) {
+        rethrow;
+      }
+      await target.parent.create(recursive: true);
+      await temporary.copy(target.path);
+      await temporary.delete();
+    } on FileSystemException {
+      if (!await temporary.exists()) {
+        rethrow;
+      }
+      await target.parent.create(recursive: true);
+      await temporary.copy(target.path);
+      try {
+        await temporary.delete();
+      } on FileSystemException {
+        // Best-effort cleanup.
+      }
+    }
   }
 
   static Future<void> _writeAndFlush(File temporary, String contents) async {

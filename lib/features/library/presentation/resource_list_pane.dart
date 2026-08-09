@@ -163,7 +163,7 @@ class _ResourceListPaneState extends State<ResourceListPane> {
             Semantics(
               label: '搜索当前分类',
               textField: true,
-              child: MacosSearchField(
+              child: MacosTextField(
                 key: const ValueKey('resource-search'),
                 focusNode: _searchFocusNode,
                 placeholder: '搜索当前分类',

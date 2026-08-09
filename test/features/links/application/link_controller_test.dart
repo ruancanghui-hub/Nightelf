@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:ai_workbench/features/links/application/link_controller.dart';
 import 'package:ai_workbench/features/links/data/file_link_repository.dart';
 import 'package:ai_workbench/shared/io/atomic_file_writer.dart';
+import 'package:ai_workbench/shared/platform/floating_bubble_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../shared/platform/recording_platform_adapters.dart';
@@ -11,6 +12,7 @@ void main() {
   late Directory root;
   late RecordingClipboardService clipboard;
   late RecordingSystemOpenService systemOpen;
+  late RecordingFloatingBubbleService bubbles;
   late LinkController controller;
   var nextId = 0;
 
@@ -18,6 +20,7 @@ void main() {
     root = await Directory.systemTemp.createTemp('nightelf-link-ctrl-');
     clipboard = RecordingClipboardService();
     systemOpen = RecordingSystemOpenService();
+    bubbles = RecordingFloatingBubbleService();
     nextId = 0;
     controller = LinkController(
       repository: FileLinkRepository(
@@ -27,6 +30,7 @@ void main() {
       ),
       clipboard: clipboard,
       systemOpen: systemOpen,
+      floatingBubbles: bubbles,
       vaultRootPath: root.path,
     );
   });
@@ -51,5 +55,23 @@ void main() {
     clipboard.nextReadText = 'javascript:alert(1)';
     await expectLater(controller.createFromClipboard(), throwsStateError);
     expect(controller.errorMessage, '仅支持 http 或 https 链接');
+  });
+
+  test('rename title and toggle floating bubble', () async {
+    await controller.create(
+      title: '旧标题',
+      url: 'https://example.com',
+    );
+    final renamed = await controller.rename('新标题');
+    expect(renamed.title, '新标题');
+    expect(renamed.relativePath, 'links/新标题.md');
+
+    await controller.setFloatingBubble(true);
+    expect(controller.isFloatingBubble, isTrue);
+    expect(bubbles.shown.single.url, 'https://example.com');
+
+    await controller.setFloatingBubble(false);
+    expect(controller.isFloatingBubble, isFalse);
+    expect(bubbles.hidden, contains(renamed.id));
   });
 }

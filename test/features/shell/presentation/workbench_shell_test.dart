@@ -42,7 +42,7 @@ void main() {
     }
     expect(find.text('收藏'), findsOneWidget);
     expect(find.text('最近使用'), findsOneWidget);
-    expect(find.text('我的 AI 工作台'), findsOneWidget);
+    expect(find.text('暗夜精灵-AI定制工作台'), findsOneWidget);
     expect(find.text('⌘K'), findsOneWidget);
     expect(find.text('未配置同步'), findsOneWidget);
     expect(

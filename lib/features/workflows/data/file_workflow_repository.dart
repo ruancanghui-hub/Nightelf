@@ -86,6 +86,37 @@ start[开始] --> end[结束]
   }
 
   @override
+  Future<WorkflowDocument> rename(
+    String relativePath, {
+    required String title,
+    String? source,
+  }) async {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw ArgumentError('标题不能为空');
+    }
+    final current = await read(relativePath);
+    final nextPath = await _allocateRelativePath(
+      trimmed,
+      current.extension,
+      excluding: relativePath,
+    );
+    final renamed = current.copyWith(
+      title: trimmed,
+      source: source ?? current.source,
+      relativePath: nextPath,
+    );
+    await save(renamed);
+    if (nextPath != relativePath) {
+      final oldFile = File(p.join(_vaultRoot.path, relativePath));
+      if (await oldFile.exists()) {
+        await oldFile.delete();
+      }
+    }
+    return renamed;
+  }
+
+  @override
   Future<String> moveToTrash(String relativePath) async {
     final source = File(p.join(_vaultRoot.path, relativePath));
     if (!await source.exists()) {
@@ -135,15 +166,24 @@ start[开始] --> end[结束]
     );
   }
 
-  Future<String> _allocateRelativePath(String title, String extension) async {
+  Future<String> _allocateRelativePath(
+    String title,
+    String extension, {
+    String? excluding,
+  }) async {
     final base = slugifyWorkflowTitle(title);
     var candidate = 'workflows/$base$extension';
     var index = 2;
-    while (await File(p.join(_vaultRoot.path, candidate)).exists()) {
+    while (true) {
+      if (candidate == excluding) {
+        return candidate;
+      }
+      if (!await File(p.join(_vaultRoot.path, candidate)).exists()) {
+        return candidate;
+      }
       candidate = 'workflows/$base-$index$extension';
       index += 1;
     }
-    return candidate;
   }
 }
 

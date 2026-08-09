@@ -23,6 +23,7 @@ class LinkMarkdownCodec {
           : const [],
       notes: document.body,
       relativePath: relativePath,
+      floatingBubble: metadata['floatingBubble'] == true,
     );
   }
 
@@ -35,6 +36,7 @@ class LinkMarkdownCodec {
       ..writeln('url: ${jsonEncode(document.uri.toString())}')
       ..writeln('description: ${jsonEncode(document.description)}')
       ..writeln('tags: [$tags]')
+      ..writeln('floatingBubble: ${document.floatingBubble}')
       ..writeln('---')
       ..write(document.notes);
     return buffer.toString();
