@@ -25,6 +25,28 @@ void main() {
     expect(candidate.isDirectory, isTrue);
   });
 
+  test('classifies a dropped SKILL.md file as its parent folder', () async {
+    final source = await fixture.skillDirectory('apple-design');
+    final entry = File('${source.path}/SKILL.md');
+    final candidate = await classifier.classify(entry);
+    expect(candidate.suggestedType, ResourceType.skill);
+    expect(candidate.isDirectory, isTrue);
+    expect(candidate.sourcePath, source.path);
+    expect(candidate.reason, '检测到 SKILL.md，将导入所在文件夹');
+  });
+
+  test(
+    'classifies a parent folder of skill packages as a skill bundle',
+    () async {
+      final first = await fixture.skillDirectory('alpha');
+      final second = await fixture.skillDirectory('beta');
+      expect(first.parent.path, second.parent.path);
+      final candidate = await classifier.classify(first.parent);
+      expect(candidate.suggestedType, ResourceType.skill);
+      expect(candidate.reason, contains('2 个 SKILL 子包'));
+    },
+  );
+
   test('classifies known file extensions', () async {
     expect(
       (await classifier.classify(await fixture.file('a.md'))).suggestedType,

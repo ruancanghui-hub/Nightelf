@@ -169,4 +169,55 @@ void main() {
     expect(result.succeeded, isFalse);
     expect(result.failureReason, contains('请先选择资源类型'));
   });
+
+  test('rejects skill files and folders without SKILL.md', () async {
+    final sourceFixture = await ImportSourceFixture.create();
+    addTearDown(sourceFixture.dispose);
+    final vaultRoot = await Directory.systemTemp.createTemp(
+      'nightelf-import-skill-validate-',
+    );
+    addTearDown(() => vaultRoot.delete(recursive: true));
+    final vault = await FileVaultRepository().create(vaultRoot, '校验');
+    final repository = VaultImportRepository();
+
+    final skillFile = await sourceFixture.file('SKILL.md', '# orphan');
+    final fileResult = await repository.importItem(
+      vault,
+      ImportPlanItem(
+        candidate: ImportCandidate(
+          sourcePath: skillFile.path,
+          isDirectory: false,
+          suggestedType: ResourceType.skill,
+          reason: '手动选择',
+        ),
+        selectedType: ResourceType.skill,
+        title: 'SKILL',
+        targetBasename: 'SKILL.md',
+        isSelected: true,
+      ),
+    );
+    expect(fileResult.succeeded, isFalse);
+    expect(fileResult.failureReason, contains('必须导入文件夹'));
+
+    final bareFolder = Directory(p.join(sourceFixture.root.path, 'bare'));
+    await bareFolder.create();
+    await File(p.join(bareFolder.path, 'notes.txt')).writeAsString('x');
+    final folderResult = await repository.importItem(
+      vault,
+      ImportPlanItem(
+        candidate: ImportCandidate(
+          sourcePath: bareFolder.path,
+          isDirectory: true,
+          suggestedType: ResourceType.skill,
+          reason: '手动选择',
+        ),
+        selectedType: ResourceType.skill,
+        title: 'bare',
+        targetBasename: 'bare',
+        isSelected: true,
+      ),
+    );
+    expect(folderResult.succeeded, isFalse);
+    expect(folderResult.failureReason, contains('根级 SKILL.md'));
+  });
 }

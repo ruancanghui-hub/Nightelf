@@ -1,8 +1,12 @@
+import 'dart:async';
+
+import 'package:ai_workbench/features/command_palette/domain/workbench_command.dart';
 import 'package:ai_workbench/features/command_palette/presentation/command_palette.dart';
 import 'package:ai_workbench/features/library/presentation/resource_list_pane.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/domain/resource_metadata.dart';
 import 'package:ai_workbench/features/metadata/presentation/collection_editor_sheet.dart';
+import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
 import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
 import 'package:ai_workbench/features/shell/application/workbench_controller.dart';
 import 'package:ai_workbench/features/shell/application/workbench_intents.dart';
@@ -14,6 +18,7 @@ import 'package:ai_workbench/features/shell/domain/workspace_tab.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_toolbar.dart';
 import 'package:ai_workbench/features/shell/presentation/workspace_tab_strip.dart';
+import 'package:ai_workbench/features/skills/application/skill_controller.dart';
 import 'package:ai_workbench/features/workspaces/presentation/workspace_content.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -29,8 +34,13 @@ class WorkbenchShell extends StatefulWidget {
     this.onToggleFavorite,
     this.metadataController,
     this.promptController,
+    this.skillController,
+    this.mcpController,
     this.restorationRepository,
     this.onCreatePrompt,
+    this.onDuplicatePrompt,
+    this.onImportSkill,
+    this.onCreateMcp,
   });
 
   final List<WorkbenchResource>? resources;
@@ -39,8 +49,13 @@ class WorkbenchShell extends StatefulWidget {
   final Future<void> Function(String resourceId)? onToggleFavorite;
   final MetadataController? metadataController;
   final PromptController? promptController;
+  final SkillController? skillController;
+  final McpController? mcpController;
   final WorkspaceRestorationRepository? restorationRepository;
   final Future<void> Function()? onCreatePrompt;
+  final Future<void> Function(WorkbenchResource resource)? onDuplicatePrompt;
+  final Future<void> Function()? onImportSkill;
+  final Future<void> Function()? onCreateMcp;
 
   @override
   State<WorkbenchShell> createState() => WorkbenchShellState();
@@ -68,6 +83,16 @@ class WorkbenchShellState extends State<WorkbenchShell> {
 
   Set<String> toggleFavorite(String resourceId) {
     return _controller.toggleFavorite(resourceId);
+  }
+
+  /// Opens a resource after create/duplicate once the Vault scan refreshed it.
+  Future<void> openByRelativePath(String relativePath) async {
+    for (final resource in _controller.allResources) {
+      if (resource.relativePath == relativePath) {
+        await _openResource(resource);
+        return;
+      }
+    }
   }
 
   @override
@@ -253,10 +278,18 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     }
     await widget.metadataController?.recordRecent(resource.id);
     final relativePath = resource.relativePath;
+    if (relativePath == null) {
+      return;
+    }
     if (resource.type == ResourceType.aiPrompt &&
-        relativePath != null &&
         widget.promptController != null) {
       await widget.promptController!.open(relativePath);
+    } else if (resource.type == ResourceType.skillFolder &&
+        widget.skillController != null) {
+      await widget.skillController!.open(relativePath);
+    } else if (resource.type == ResourceType.mcpConfiguration &&
+        widget.mcpController != null) {
+      await widget.mcpController!.open(relativePath);
     }
   }
 
@@ -268,6 +301,20 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     _tabsController.activateTab(resourceId);
     _controller.selectResource(resource);
     widget.metadataController?.recordRecent(resourceId);
+    final relativePath = resource.relativePath;
+    if (relativePath == null) {
+      return;
+    }
+    if (resource.type == ResourceType.aiPrompt &&
+        widget.promptController != null) {
+      unawaited(widget.promptController!.open(relativePath));
+    } else if (resource.type == ResourceType.skillFolder &&
+        widget.skillController != null) {
+      unawaited(widget.skillController!.open(relativePath));
+    } else if (resource.type == ResourceType.mcpConfiguration &&
+        widget.mcpController != null) {
+      unawaited(widget.mcpController!.open(relativePath));
+    }
   }
 
   void _closeTab(String resourceId) {
@@ -372,6 +419,23 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     final palette = _isPaletteOpen
         ? CommandPalette(
             resources: _controller.allResources,
+            commands: [
+              WorkbenchCommand(
+                id: 'new-prompt',
+                label: '新建提示词',
+                execute: widget.onCreatePrompt,
+              ),
+              WorkbenchCommand(
+                id: 'import-skill',
+                label: '导入 SKILL 文件夹',
+                execute: widget.onImportSkill,
+              ),
+              WorkbenchCommand(
+                id: 'new-mcp',
+                label: '新建 MCP 配置',
+                execute: widget.onCreateMcp,
+              ),
+            ],
             onResourceSelected: _openResource,
             onDismissed: _closePalette,
           )
@@ -445,6 +509,21 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                 ResourceType.aiPrompt
                                             ? widget.onCreatePrompt
                                             : null,
+                                        onDuplicatePrompt:
+                                            _controller.selectedDestination ==
+                                                ResourceType.aiPrompt
+                                            ? widget.onDuplicatePrompt
+                                            : null,
+                                        onImportSkill:
+                                            _controller.selectedDestination ==
+                                                ResourceType.skillFolder
+                                            ? widget.onImportSkill
+                                            : null,
+                                        onCreateMcp:
+                                            _controller.selectedDestination ==
+                                                ResourceType.mcpConfiguration
+                                            ? widget.onCreateMcp
+                                            : null,
                                       ),
                                       Expanded(
                                         child: Column(
@@ -464,6 +543,10 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                 metadataController: metadata,
                                                 promptController:
                                                     widget.promptController,
+                                                skillController:
+                                                    widget.skillController,
+                                                mcpController:
+                                                    widget.mcpController,
                                                 allResources:
                                                     _controller.allResources,
                                                 onOpenRelated: _openResource,

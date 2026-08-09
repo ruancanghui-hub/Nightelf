@@ -55,15 +55,46 @@ class ImportController extends ChangeNotifier {
       final entity = await _entityFor(path);
       final candidate = await _classifier.classify(entity);
       final selectedType = candidate.suggestedType ?? preferredType;
-      final title = p.basenameWithoutExtension(path);
+
+      if (candidate.isDirectory &&
+          selectedType == ResourceType.skill &&
+          !await File(p.join(candidate.sourcePath, 'SKILL.md')).exists()) {
+        final packages = await findImmediateSkillPackages(
+          Directory(candidate.sourcePath),
+        );
+        if (packages.isNotEmpty) {
+          for (final package in packages) {
+            final name = p.basename(package.path);
+            items.add(
+              ImportPlanItem(
+                candidate: ImportCandidate(
+                  sourcePath: package.path,
+                  isDirectory: true,
+                  suggestedType: ResourceType.skill,
+                  reason: '来自 SKILL 集合：${p.basename(candidate.sourcePath)}',
+                ),
+                selectedType: ResourceType.skill,
+                title: name,
+                targetBasename: name,
+                isSelected: true,
+              ),
+            );
+          }
+          continue;
+        }
+      }
+
+      final title = p.basenameWithoutExtension(
+        candidate.isDirectory ? candidate.sourcePath : path,
+      );
       final basename = selectedType == null
-          ? p.basename(path)
+          ? p.basename(candidate.sourcePath)
           : defaultBasenameFor(
               ImportPlanItem(
                 candidate: candidate,
                 selectedType: selectedType,
                 title: title,
-                targetBasename: p.basename(path),
+                targetBasename: p.basename(candidate.sourcePath),
                 isSelected: true,
               ),
               selectedType,
@@ -72,7 +103,7 @@ class ImportController extends ChangeNotifier {
         ImportPlanItem(
           candidate: candidate,
           selectedType: selectedType,
-          title: title.isEmpty ? p.basename(path) : title,
+          title: title.isEmpty ? p.basename(candidate.sourcePath) : title,
           targetBasename: basename,
           isSelected: true,
         ),
@@ -84,9 +115,46 @@ class ImportController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setType(int index, ResourceType type) {
-    _updateItem(index, (item) {
-      final next = item.copyWith(selectedType: type);
+  Future<void> setType(int index, ResourceType type) async {
+    if (index < 0 || index >= _plan.items.length) {
+      return;
+    }
+    final item = _plan.items[index];
+    if (type == ResourceType.skill && item.candidate.isDirectory) {
+      final hasRootSkill = await File(
+        p.join(item.candidate.sourcePath, 'SKILL.md'),
+      ).exists();
+      if (!hasRootSkill) {
+        final packages = await findImmediateSkillPackages(
+          Directory(item.candidate.sourcePath),
+        );
+        if (packages.isNotEmpty) {
+          final items = [..._plan.items]..removeAt(index);
+          final expanded = [
+            for (final package in packages)
+              ImportPlanItem(
+                candidate: ImportCandidate(
+                  sourcePath: package.path,
+                  isDirectory: true,
+                  suggestedType: ResourceType.skill,
+                  reason:
+                      '来自 SKILL 集合：${p.basename(item.candidate.sourcePath)}',
+                ),
+                selectedType: ResourceType.skill,
+                title: p.basename(package.path),
+                targetBasename: p.basename(package.path),
+                isSelected: true,
+              ),
+          ];
+          items.insertAll(index, expanded);
+          _plan = ImportPlan(items);
+          notifyListeners();
+          return;
+        }
+      }
+    }
+    _updateItem(index, (current) {
+      final next = current.copyWith(selectedType: type);
       return next.copyWith(targetBasename: defaultBasenameFor(next, type));
     });
   }

@@ -12,6 +12,7 @@ class AtomicFileWriter {
   final TemporaryFileWriter _writeTemporaryFile;
 
   Future<void> writeString(File target, String contents) async {
+    await target.parent.create(recursive: true);
     final temporary = File('${target.path}.nightelf-tmp');
     await _writeTemporaryFile(temporary, contents);
     await temporary.rename(target.path);

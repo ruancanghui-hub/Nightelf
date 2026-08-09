@@ -29,12 +29,35 @@ class ImportClassifier {
           reason: '检测到 SKILL.md',
         );
       }
+      final childSkills = await findImmediateSkillPackages(Directory(path));
+      if (childSkills.isNotEmpty) {
+        return ImportCandidate(
+          sourcePath: path,
+          isDirectory: true,
+          suggestedType: ResourceType.skill,
+          reason: '检测到 ${childSkills.length} 个 SKILL 子包，将分别导入',
+        );
+      }
       return ImportCandidate(
         sourcePath: path,
         isDirectory: true,
         suggestedType: null,
         reason: '无法自动识别类型',
       );
+    }
+
+    final basename = p.basename(path);
+    if (basename.toLowerCase() == 'skill.md') {
+      final parentPath = p.dirname(path);
+      final parentSkill = File(p.join(parentPath, 'SKILL.md'));
+      if (await parentSkill.exists()) {
+        return ImportCandidate(
+          sourcePath: parentPath,
+          isDirectory: true,
+          suggestedType: ResourceType.skill,
+          reason: '检测到 SKILL.md，将导入所在文件夹',
+        );
+      }
     }
 
     final extension = p.extension(path).toLowerCase();
@@ -79,4 +102,33 @@ class ImportClassifier {
     final type = await FileSystemEntity.type(source.path, followLinks: false);
     return type == FileSystemEntityType.link;
   }
+}
+
+/// Immediate child directories that each contain a root `SKILL.md`.
+Future<List<Directory>> findImmediateSkillPackages(Directory root) async {
+  if (!await root.exists()) {
+    return const [];
+  }
+  final packages = <Directory>[];
+  await for (final entity in root.list(followLinks: false)) {
+    final name = p.basename(entity.path);
+    if (name.startsWith('.')) {
+      continue;
+    }
+    final type = await FileSystemEntity.type(entity.path, followLinks: false);
+    if (type != FileSystemEntityType.directory) {
+      continue;
+    }
+    final skill = File(p.join(entity.path, 'SKILL.md'));
+    if (await skill.exists()) {
+      packages.add(Directory(entity.path));
+    }
+  }
+  packages.sort(
+    (a, b) => p
+        .basename(a.path)
+        .toLowerCase()
+        .compareTo(p.basename(b.path).toLowerCase()),
+  );
+  return packages;
 }

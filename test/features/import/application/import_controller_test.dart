@@ -61,4 +61,48 @@ void main() {
     expect(controller.plan.items, isEmpty);
     expect(controller.statusMessage, '已取消导入');
   });
+
+  test('expands a skills parent folder into child packages', () async {
+    final sourceFixture = await ImportSourceFixture.create();
+    addTearDown(sourceFixture.dispose);
+    final vaultRoot = await Directory.systemTemp.createTemp(
+      'nightelf-import-bundle-',
+    );
+    addTearDown(() => vaultRoot.delete(recursive: true));
+    final vault = await FileVaultRepository().create(vaultRoot, '集合');
+    await sourceFixture.skillDirectory('alpha');
+    await sourceFixture.skillDirectory('beta');
+
+    final refreshed = <Set<String>>[];
+    final controller = ImportController(
+      repository: VaultImportRepository(),
+      onImported: (paths) async => refreshed.add(paths),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.prepare([sourceFixture.root.path]);
+    expect(controller.plan.items, hasLength(2));
+    expect(
+      controller.plan.items.map((item) => item.targetBasename).toList()..sort(),
+      ['alpha', 'beta'],
+    );
+    expect(
+      controller.plan.items.every(
+        (item) => item.selectedType == ResourceType.skill,
+      ),
+      isTrue,
+    );
+
+    final results = await controller.confirm(vault);
+    expect(results.every((result) => result.succeeded), isTrue);
+    expect(refreshed.single, containsAll(['skills/alpha', 'skills/beta']));
+    expect(
+      File(p.join(vaultRoot.path, 'skills/alpha/SKILL.md')).existsSync(),
+      isTrue,
+    );
+    expect(
+      File(p.join(vaultRoot.path, 'skills/beta/SKILL.md')).existsSync(),
+      isTrue,
+    );
+  });
 }

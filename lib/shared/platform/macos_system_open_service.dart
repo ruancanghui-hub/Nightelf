@@ -33,6 +33,12 @@ class MacosSystemOpenService implements SystemOpenService {
     await _run('openExternalUrl', [_open, uri.toString()]);
   }
 
+  @override
+  Future<void> openPath(String path) async {
+    final absolute = _requireAbsolute(path, 'openPath');
+    await _run('openPath', [_open, absolute]);
+  }
+
   String _requireAbsolute(String path, String operation) {
     if (!p.isAbsolute(path)) {
       throw SystemOpenException(operation, '路径必须是绝对路径：$path');

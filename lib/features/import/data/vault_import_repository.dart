@@ -45,6 +45,17 @@ class VaultImportRepository {
       );
     }
 
+    if (type == ResourceType.skill) {
+      final skillError = await _validateSkillSource(item);
+      if (skillError != null) {
+        return ImportResult(
+          item: item,
+          succeeded: false,
+          failureReason: skillError,
+        );
+      }
+    }
+
     final destinationDir = Directory(
       p.join(vault.root.path, VaultPaths.directoryFor(type)),
     );
@@ -149,6 +160,28 @@ class VaultImportRepository {
         await file.delete();
       }
     }
+  }
+
+  Future<String?> _validateSkillSource(ImportPlanItem item) async {
+    final sourcePath = item.candidate.sourcePath;
+    final sourceType = await FileSystemEntity.type(
+      sourcePath,
+      followLinks: false,
+    );
+    if (sourceType == FileSystemEntityType.file) {
+      return 'SKILL 必须导入文件夹（含根级 SKILL.md），不能只导入单个文件';
+    }
+    if (sourceType != FileSystemEntityType.directory) {
+      return 'SKILL 源路径无效';
+    }
+    final entry = File(p.join(sourcePath, 'SKILL.md'));
+    if (!await entry.exists()) {
+      return 'SKILL 文件夹必须包含根级 SKILL.md，否则无法出现在列表中';
+    }
+    if (!item.candidate.isDirectory) {
+      return 'SKILL 必须作为文件夹导入';
+    }
+    return null;
   }
 }
 

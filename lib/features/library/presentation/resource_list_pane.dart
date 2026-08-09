@@ -10,6 +10,9 @@ class ResourceListPane extends StatefulWidget {
     required this.onResourceSelected,
     this.onToggleFavorite,
     this.onCreatePrompt,
+    this.onDuplicatePrompt,
+    this.onImportSkill,
+    this.onCreateMcp,
     super.key,
   });
 
@@ -17,6 +20,9 @@ class ResourceListPane extends StatefulWidget {
   final ValueChanged<WorkbenchResource> onResourceSelected;
   final Future<void> Function(String resourceId)? onToggleFavorite;
   final Future<void> Function()? onCreatePrompt;
+  final Future<void> Function(WorkbenchResource resource)? onDuplicatePrompt;
+  final Future<void> Function()? onImportSkill;
+  final Future<void> Function()? onCreateMcp;
 
   @override
   State<ResourceListPane> createState() => _ResourceListPaneState();
@@ -71,6 +77,30 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                 ),
               ),
             ],
+            if (widget.onImportSkill != null) ...[
+              const SizedBox(height: 8),
+              PushButton(
+                controlSize: ControlSize.large,
+                semanticLabel: '导入 SKILL 文件夹',
+                onPressed: () => widget.onImportSkill!(),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('导入 SKILL 文件夹'),
+                ),
+              ),
+            ],
+            if (widget.onCreateMcp != null) ...[
+              const SizedBox(height: 8),
+              PushButton(
+                controlSize: ControlSize.large,
+                semanticLabel: '新建 MCP 配置',
+                onPressed: () => widget.onCreateMcp!(),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('新建 MCP 配置'),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Semantics(
               label: '搜索当前分类',
@@ -84,53 +114,84 @@ class _ResourceListPaneState extends State<ResourceListPane> {
             ),
             const SizedBox(height: 14),
             if (resources.isEmpty)
-              Text('未找到匹配资源', style: typography.body)
+              Text(
+                widget.onCreatePrompt != null
+                    ? '暂无提示词，点击上方「新建提示词」后可粘贴内容。'
+                    : widget.onImportSkill != null
+                    ? '暂无 SKILL，点击上方「导入 SKILL 文件夹」开始。'
+                    : widget.onCreateMcp != null
+                    ? '暂无 MCP 配置，点击上方「新建 MCP 配置」开始。'
+                    : '未找到匹配资源',
+                style: typography.body,
+              )
             else
-              for (final resource in resources)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: PushButton(
-                          controlSize: ControlSize.large,
-                          semanticLabel: '选择资源：${resource.title}',
-                          onPressed: () => widget.onResourceSelected(resource),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${resource.isFavorite ? '★ ' : ''}${resource.title}',
+              Expanded(
+                child: ListView(
+                  children: [
+                    for (final resource in resources)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: PushButton(
+                                controlSize: ControlSize.large,
+                                semanticLabel: '选择资源：${resource.title}',
+                                onPressed: () =>
+                                    widget.onResourceSelected(resource),
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${resource.isFavorite ? '★ ' : ''}${resource.title}',
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        resource.subtitle,
+                                        style: typography.caption1,
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  resource.subtitle,
-                                  style: typography.caption1,
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
+                            if (widget.onDuplicatePrompt != null)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 6),
+                                child: PushButton(
+                                  controlSize: ControlSize.small,
+                                  secondary: true,
+                                  semanticLabel: '复制文件：${resource.title}',
+                                  onPressed: () =>
+                                      widget.onDuplicatePrompt!(resource),
+                                  child: const Text('复制'),
+                                ),
+                              ),
+                            if (widget.onToggleFavorite != null)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 6),
+                                child: PushButton(
+                                  controlSize: ControlSize.small,
+                                  secondary: true,
+                                  semanticLabel: resource.isFavorite
+                                      ? '取消收藏：${resource.title}'
+                                      : '收藏：${resource.title}',
+                                  onPressed: () =>
+                                      widget.onToggleFavorite!(resource.id),
+                                  child: Text(
+                                    resource.isFavorite ? '已收藏' : '收藏',
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
-                      if (widget.onToggleFavorite != null)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 6),
-                          child: PushButton(
-                            controlSize: ControlSize.small,
-                            secondary: true,
-                            semanticLabel: resource.isFavorite
-                                ? '取消收藏：${resource.title}'
-                                : '收藏：${resource.title}',
-                            onPressed: () =>
-                                widget.onToggleFavorite!(resource.id),
-                            child: Text(resource.isFavorite ? '已收藏' : '收藏'),
-                          ),
-                        ),
-                    ],
-                  ),
+                  ],
                 ),
+              ),
           ],
         ),
       ),

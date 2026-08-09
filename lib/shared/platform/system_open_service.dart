@@ -14,4 +14,7 @@ abstract interface class SystemOpenService {
   Future<void> openTerminalAt(String directoryPath);
 
   Future<void> openExternalUrl(Uri uri);
+
+  /// Opens a local file or directory with the default macOS application.
+  Future<void> openPath(String path);
 }

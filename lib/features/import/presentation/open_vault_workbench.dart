@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:ai_workbench/features/import/application/import_controller.dart';
@@ -13,10 +14,16 @@ import 'package:ai_workbench/features/shell/domain/workbench_resource.dart'
     as shell;
 import 'package:ai_workbench/features/shell/domain/workbench_resource_mapper.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
+import 'package:ai_workbench/features/skills/application/skill_controller.dart';
+import 'package:ai_workbench/features/skills/data/file_skill_repository.dart';
+import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
+import 'package:ai_workbench/features/mcp/data/file_mcp_repository.dart';
 import 'package:ai_workbench/features/vault/application/vault_controller.dart';
 import 'package:ai_workbench/features/vault/application/vault_state.dart';
 import 'package:ai_workbench/shared/domain/resource_type.dart';
 import 'package:ai_workbench/shared/platform/flutter_clipboard_service.dart';
+import 'package:ai_workbench/shared/platform/macos_system_open_service.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -38,6 +45,8 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   late final ImportController _importController;
   late MetadataController _metadataController;
   late PromptController _promptController;
+  late SkillController _skillController;
+  late McpController _mcpController;
   bool _reviewOpen = false;
   String? _bannerMessage;
   shell.ResourceType? _preferredShellType;
@@ -51,12 +60,16 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       widget.openState.handle.root,
     );
     _promptController = _createPromptController(widget.openState.handle.root);
+    _skillController = _createSkillController(widget.openState.handle.root);
+    _mcpController = _createMcpController(widget.openState.handle.root);
     _importController = ImportController(
       repository: VaultImportRepository(),
       onImported: (paths) => widget.vaultController.refreshPaths(paths),
     )..addListener(_onImportChanged);
     _metadataController.addListener(_onMetadataChanged);
     _promptController.addListener(_onPromptChanged);
+    _skillController.addListener(_onSkillChanged);
+    _mcpController.addListener(_onMcpChanged);
     _loadMetadata();
   }
 
@@ -71,11 +84,21 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       _promptController
         ..removeListener(_onPromptChanged)
         ..dispose();
+      _skillController
+        ..removeListener(_onSkillChanged)
+        ..dispose();
+      _mcpController
+        ..removeListener(_onMcpChanged)
+        ..dispose();
       _metadataController = _createMetadataController(
         widget.openState.handle.root,
       )..addListener(_onMetadataChanged);
       _promptController = _createPromptController(widget.openState.handle.root)
         ..addListener(_onPromptChanged);
+      _skillController = _createSkillController(widget.openState.handle.root)
+        ..addListener(_onSkillChanged);
+      _mcpController = _createMcpController(widget.openState.handle.root)
+        ..addListener(_onMcpChanged);
       _loadMetadata();
     } else if (!identical(
       oldWidget.openState.resources,
@@ -90,6 +113,12 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   @override
   void dispose() {
+    _mcpController
+      ..removeListener(_onMcpChanged)
+      ..dispose();
+    _skillController
+      ..removeListener(_onSkillChanged)
+      ..dispose();
     _promptController
       ..removeListener(_onPromptChanged)
       ..dispose();
@@ -112,6 +141,23 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     return PromptController(
       repository: FilePromptRepository(vaultRoot: root),
       clipboard: const FlutterClipboardService(),
+      vaultRootPath: root.path,
+    );
+  }
+
+  SkillController _createSkillController(Directory root) {
+    return SkillController(
+      repository: FileSkillRepository(vaultRoot: root),
+      systemOpen: MacosSystemOpenService(),
+      vaultRootPath: root.path,
+    );
+  }
+
+  McpController _createMcpController(Directory root) {
+    return McpController(
+      repository: FileMcpRepository(vaultRoot: root),
+      clipboard: const FlutterClipboardService(),
+      systemOpen: MacosSystemOpenService(),
       vaultRootPath: root.path,
     );
   }
@@ -139,6 +185,18 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     }
   }
 
+  void _onSkillChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _onMcpChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Future<void> _loadMetadata() async {
     await _metadataController.load();
     if (!mounted) {
@@ -155,12 +213,112 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   }
 
   Future<void> _createPrompt() async {
-    final created = await _promptController.create(
-      title: '未命名提示词',
-      body: '# 新提示词\n\n',
-    );
-    await widget.vaultController.refreshPaths({created.relativePath});
-    setState(() => _bannerMessage = '已创建提示词');
+    try {
+      final created = await _promptController.create(
+        title: '未命名提示词',
+        body: '# 新提示词\n\n在此粘贴或编写内容。\n',
+      );
+      await widget.vaultController.refreshPaths({created.relativePath});
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '已新建提示词，可直接编辑或粘贴内容');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(
+          _shellKey.currentState?.openByRelativePath(created.relativePath) ??
+              Future<void>.value(),
+        );
+      });
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '新建失败：$error');
+    }
+  }
+
+  Future<void> _duplicatePrompt(shell.WorkbenchResource resource) async {
+    final relativePath = resource.relativePath;
+    if (relativePath == null) {
+      return;
+    }
+    try {
+      await _promptController.open(relativePath);
+      final duplicated = await _promptController.duplicate();
+      await widget.vaultController.refreshPaths({duplicated.relativePath});
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '已复制文件：${duplicated.title}');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(
+          _shellKey.currentState?.openByRelativePath(duplicated.relativePath) ??
+              Future<void>.value(),
+        );
+      });
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '复制失败：$error');
+    }
+  }
+
+  Future<void> _importSkill() async {
+    try {
+      final selected = await FilePicker.getDirectoryPath(
+        dialogTitle: '选择 SKILL 文件夹',
+      );
+      if (selected == null) {
+        return;
+      }
+      final imported = await _skillController.importDirectory(
+        Directory(selected),
+      );
+      await widget.vaultController.refreshPaths({imported.relativeDirectory});
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '已导入 SKILL：${imported.title}');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(
+          _shellKey.currentState?.openByRelativePath(
+                imported.relativeDirectory,
+              ) ??
+              Future<void>.value(),
+        );
+      });
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '导入 SKILL 失败：$error');
+    }
+  }
+
+  Future<void> _createMcp() async {
+    try {
+      final created = await _mcpController.create(
+        title: '未命名 MCP',
+        jsonText: '{\n  "mcpServers": {}\n}\n',
+      );
+      await widget.vaultController.refreshPaths({created.relativePath});
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '已新建 MCP 配置');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(
+          _shellKey.currentState?.openByRelativePath(created.relativePath) ??
+              Future<void>.value(),
+        );
+      });
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '新建 MCP 失败：$error');
+    }
   }
 
   ResourceType? get _preferredVaultType {
@@ -220,7 +378,12 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                   onToggleFavorite: _toggleFavorite,
                   metadataController: _metadataController,
                   promptController: _promptController,
+                  skillController: _skillController,
+                  mcpController: _mcpController,
                   onCreatePrompt: _createPrompt,
+                  onDuplicatePrompt: _duplicatePrompt,
+                  onImportSkill: _importSkill,
+                  onCreateMcp: _createMcp,
                   restorationRepository: WorkspaceRestorationRepository(
                     vaultRoot: widget.openState.handle.root,
                   ),

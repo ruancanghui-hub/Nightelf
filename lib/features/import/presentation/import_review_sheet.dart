@@ -127,6 +127,22 @@ class ImportReviewSheet extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(controller.statusMessage!),
                     ],
+                    if (controller.results.any((result) => !result.succeeded))
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final result in controller.results.where(
+                              (result) => !result.succeeded,
+                            ))
+                              Text(
+                                '失败：${p.basename(result.item.candidate.sourcePath)} — ${result.failureReason ?? '未知错误'}',
+                                style: typography.caption1,
+                              ),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 12),
                     Row(
                       children: [

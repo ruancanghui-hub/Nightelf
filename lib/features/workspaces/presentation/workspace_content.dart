@@ -5,11 +5,14 @@ import 'package:ai_workbench/features/editor/domain/document_path_resolver.dart'
 import 'package:ai_workbench/features/editor/presentation/text_editor_workspace.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/presentation/metadata_inspector.dart';
+import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
+import 'package:ai_workbench/features/mcp/presentation/mcp_workspace.dart';
 import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
 import 'package:ai_workbench/features/prompts/presentation/prompt_workspace.dart';
+import 'package:ai_workbench/features/resources/application/resource_workspace_registry.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
-import 'package:ai_workbench/features/workspaces/presentation/mcp_workspace.dart';
-import 'package:ai_workbench/features/workspaces/presentation/skill_workspace.dart';
+import 'package:ai_workbench/features/skills/application/skill_controller.dart';
+import 'package:ai_workbench/features/skills/presentation/skill_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/website_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/workflow_workspace.dart';
 import 'package:flutter/widgets.dart';
@@ -23,6 +26,8 @@ class WorkspaceContent extends StatelessWidget {
     this.onToggleFavorite,
     this.metadataController,
     this.promptController,
+    this.skillController,
+    this.mcpController,
     this.allResources = const [],
     this.onOpenRelated,
     this.showInspector = true,
@@ -35,6 +40,8 @@ class WorkspaceContent extends StatelessWidget {
   final Future<void> Function(String resourceId)? onToggleFavorite;
   final MetadataController? metadataController;
   final PromptController? promptController;
+  final SkillController? skillController;
+  final McpController? mcpController;
   final List<WorkbenchResource> allResources;
   final ValueChanged<WorkbenchResource>? onOpenRelated;
   final bool showInspector;
@@ -85,22 +92,26 @@ class WorkspaceContent extends StatelessWidget {
             Expanded(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final usePromptWorkspace =
-                      resource.type == ResourceType.aiPrompt &&
-                      promptController != null &&
-                      vaultRoot != null &&
-                      resource.relativePath != null;
-                  final surface = usePromptWorkspace
-                      ? PromptWorkspace(controller: promptController)
-                      : descriptor == null
-                      ? presentation.surface
-                      : _LiveDocumentEditor(
-                          key: ValueKey(
-                            '${resource.id}:${descriptor.absolutePath}',
-                          ),
-                          descriptor: descriptor,
-                          title: _editorTitleFor(resource.type),
-                        );
+                  final typedSurface =
+                      vaultRoot != null && resource.relativePath != null
+                      ? const ResourceWorkspaceRegistry().build(
+                          resource: resource,
+                          promptController: promptController,
+                          skillController: skillController,
+                          mcpController: mcpController,
+                        )
+                      : null;
+                  final surface =
+                      typedSurface ??
+                      (descriptor == null
+                          ? presentation.surface
+                          : _LiveDocumentEditor(
+                              key: ValueKey(
+                                '${resource.id}:${descriptor.absolutePath}',
+                              ),
+                              descriptor: descriptor,
+                              title: _editorTitleFor(resource.type),
+                            ));
 
                   final inspector = showInspector
                       ? _buildInspector(

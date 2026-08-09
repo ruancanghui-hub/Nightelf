@@ -28,6 +28,7 @@ class RecordingSystemOpenService implements SystemOpenService {
   final List<String> revealedPaths = [];
   final List<String> terminalPaths = [];
   final List<Uri> openedUrls = [];
+  final List<String> openedPaths = [];
 
   @override
   Future<void> revealInFinder(String path) async {
@@ -42,6 +43,11 @@ class RecordingSystemOpenService implements SystemOpenService {
   @override
   Future<void> openExternalUrl(Uri uri) async {
     openedUrls.add(uri);
+  }
+
+  @override
+  Future<void> openPath(String path) async {
+    openedPaths.add(path);
   }
 }
 
