@@ -26,4 +26,22 @@ class WorkbenchResource {
 
   /// Vault-relative path when this row comes from a real scan; null for mocks.
   final String? relativePath;
+
+  WorkbenchResource copyWith({
+    String? id,
+    ResourceType? type,
+    String? title,
+    String? subtitle,
+    bool? isFavorite,
+    String? relativePath,
+  }) {
+    return WorkbenchResource(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      subtitle: subtitle ?? this.subtitle,
+      isFavorite: isFavorite ?? this.isFavorite,
+      relativePath: relativePath ?? this.relativePath,
+    );
+  }
 }

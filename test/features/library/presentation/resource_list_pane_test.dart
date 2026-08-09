@@ -21,13 +21,13 @@ void main() {
       ),
     );
 
-    expect(find.text('发布说明助手'), findsOneWidget);
+    expect(find.text('★ 发布说明助手'), findsOneWidget);
     expect(find.text('UX 评审'), findsOneWidget);
 
     await tester.enterText(find.byType(MacosSearchField), '可访问性');
     await tester.pump();
 
-    expect(find.text('发布说明助手'), findsNothing);
+    expect(find.text('★ 发布说明助手'), findsNothing);
     expect(find.text('UX 评审'), findsOneWidget);
   });
 }

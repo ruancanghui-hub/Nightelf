@@ -17,11 +17,13 @@ class WorkspaceContent extends StatelessWidget {
   const WorkspaceContent({
     required this.resource,
     this.vaultRootPath,
+    this.onToggleFavorite,
     super.key,
   });
 
   final WorkbenchResource? resource;
   final String? vaultRootPath;
+  final Future<void> Function(String resourceId)? onToggleFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -90,6 +92,7 @@ class WorkspaceContent extends StatelessWidget {
                         _WorkspaceInspector(
                           resource: resource,
                           presentation: presentation,
+                          onToggleFavorite: onToggleFavorite,
                         ),
                       ],
                     ),
@@ -112,6 +115,7 @@ class WorkspaceContent extends StatelessWidget {
                         child: _WorkspaceInspector(
                           resource: resource,
                           presentation: presentation,
+                          onToggleFavorite: onToggleFavorite,
                         ),
                       ),
                     ),
@@ -283,10 +287,12 @@ class _WorkspaceInspector extends StatelessWidget {
   const _WorkspaceInspector({
     required this.resource,
     required this.presentation,
+    this.onToggleFavorite,
   });
 
   final WorkbenchResource resource;
   final _WorkspacePresentation presentation;
+  final Future<void> Function(String resourceId)? onToggleFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -314,7 +320,26 @@ class _WorkspaceInspector extends StatelessWidget {
           const SizedBox(height: 16),
           _StatusPill(label: presentation.status),
           const SizedBox(height: 20),
-          if (!presentation.live) ...[
+          if (presentation.live && onToggleFavorite != null) ...[
+            PushButton(
+              controlSize: ControlSize.large,
+              semanticLabel: resource.isFavorite
+                  ? '取消收藏：${resource.title}'
+                  : '收藏：${resource.title}',
+              onPressed: () => onToggleFavorite!(resource.id),
+              child: Text(resource.isFavorite ? '取消收藏' : '加入收藏'),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '收藏保存在当前 Vault 内，换库不会共享。',
+              style: MacosTheme.of(context).typography.caption1,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '编辑会在约 0.6 秒后自动保存，也可按 ⌘S。',
+              style: MacosTheme.of(context).typography.caption1,
+            ),
+          ] else if (!presentation.live) ...[
             _DisabledWorkspaceAction(label: presentation.primaryAction),
             const SizedBox(height: 8),
             _DisabledWorkspaceAction(

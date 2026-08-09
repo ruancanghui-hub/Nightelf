@@ -9,11 +9,13 @@ class WorkbenchSidebar extends StatelessWidget {
   const WorkbenchSidebar({
     required this.controller,
     required this.onDestinationSelected,
+    this.onResourceSelected,
     super.key,
   });
 
   final WorkbenchController controller;
   final ValueChanged<ResourceType> onDestinationSelected;
+  final ValueChanged<WorkbenchResource>? onResourceSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -57,8 +59,23 @@ class WorkbenchSidebar extends StatelessWidget {
           const SizedBox(height: 18),
           Text('收藏', style: typography.subheadline),
           const SizedBox(height: 6),
-          for (final resource in controller.favoriteResources.take(2))
-            Text(resource.title, overflow: TextOverflow.ellipsis),
+          if (controller.favoriteResources.isEmpty)
+            Text('暂无收藏', style: typography.caption1)
+          else
+            for (final resource in controller.favoriteResources.take(8))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: GestureDetector(
+                  onTap: onResourceSelected == null
+                      ? null
+                      : () => onResourceSelected!(resource),
+                  child: Text(
+                    '★ ${resource.title}',
+                    overflow: TextOverflow.ellipsis,
+                    style: typography.body,
+                  ),
+                ),
+              ),
           const SizedBox(height: 18),
           Text('最近使用', style: typography.subheadline),
           const SizedBox(height: 6),

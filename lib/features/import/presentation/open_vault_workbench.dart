@@ -2,6 +2,8 @@ import 'package:ai_workbench/features/import/application/import_controller.dart'
 import 'package:ai_workbench/features/import/data/vault_import_repository.dart';
 import 'package:ai_workbench/features/import/presentation/import_review_sheet.dart';
 import 'package:ai_workbench/features/import/presentation/vault_drop_target.dart';
+import 'package:ai_workbench/features/metadata/data/favorites_repository.dart';
+import 'package:ai_workbench/features/metadata/data/json_favorites_repository.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart'
     as shell;
 import 'package:ai_workbench/features/shell/domain/workbench_resource_mapper.dart';
@@ -28,17 +30,42 @@ class OpenVaultWorkbench extends StatefulWidget {
 
 class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   late final ImportController _importController;
+  late FavoritesRepository _favoritesRepository;
+  Set<String> _favoriteIds = {};
   bool _reviewOpen = false;
   String? _bannerMessage;
   shell.ResourceType? _preferredShellType;
+  final GlobalKey<WorkbenchShellState> _shellKey =
+      GlobalKey<WorkbenchShellState>();
 
   @override
   void initState() {
     super.initState();
+    _favoritesRepository = JsonFavoritesRepository(
+      vaultRoot: widget.openState.handle.root,
+    );
     _importController = ImportController(
       repository: VaultImportRepository(),
       onImported: (paths) => widget.vaultController.refreshPaths(paths),
     )..addListener(_onImportChanged);
+    _loadFavorites();
+  }
+
+  @override
+  void didUpdateWidget(covariant OpenVaultWorkbench oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.openState.handle.root.path !=
+        widget.openState.handle.root.path) {
+      _favoritesRepository = JsonFavoritesRepository(
+        vaultRoot: widget.openState.handle.root,
+      );
+      _loadFavorites();
+    } else if (!identical(
+      oldWidget.openState.resources,
+      widget.openState.resources,
+    )) {
+      _shellKey.currentState?.applyFavoriteIds(_favoriteIds);
+    }
   }
 
   @override
@@ -50,6 +77,27 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   }
 
   void _onImportChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _loadFavorites() async {
+    final ids = await _favoritesRepository.loadFavoriteIds();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _favoriteIds = ids);
+    _shellKey.currentState?.applyFavoriteIds(ids);
+  }
+
+  Future<void> _toggleFavorite(String resourceId) async {
+    final next = _shellKey.currentState?.toggleFavorite(resourceId);
+    if (next == null) {
+      return;
+    }
+    _favoriteIds = next;
+    await _favoritesRepository.saveFavoriteIds(next);
     if (mounted) {
       setState(() {});
     }
@@ -79,9 +127,10 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   @override
   Widget build(BuildContext context) {
-    final resources = widget.openState.resources
-        .map(workbenchResourceFromRecord)
-        .toList();
+    final resources = widget.openState.resources.map((record) {
+      final mapped = workbenchResourceFromRecord(record);
+      return mapped.copyWith(isFavorite: _favoriteIds.contains(mapped.id));
+    }).toList();
 
     return VaultDropTarget(
       preferredType: _preferredVaultType,
@@ -101,11 +150,13 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                 ),
               Expanded(
                 child: WorkbenchShell(
+                  key: _shellKey,
                   resources: resources,
                   vaultRootPath: widget.openState.handle.root.path,
                   onDestinationChanged: (type) {
                     setState(() => _preferredShellType = type);
                   },
+                  onToggleFavorite: _toggleFavorite,
                 ),
               ),
             ],

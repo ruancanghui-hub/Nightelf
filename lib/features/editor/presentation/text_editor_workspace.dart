@@ -90,8 +90,17 @@ class _TextEditorWorkspaceState extends State<TextEditorWorkspace> {
 
   @override
   Widget build(BuildContext context) {
-    final typography = MacosTheme.of(context).typography;
+    final theme = MacosTheme.of(context);
+    final typography = theme.typography;
     final readOnly = widget.session.descriptor.readOnly;
+    final isDark = theme.brightness == Brightness.dark;
+    final textColor = isDark
+        ? const Color(0xFFF5F5F7)
+        : const Color(0xFF1C1C1E);
+    final gutterColor = isDark
+        ? const Color(0xFF8E8E93)
+        : const Color(0xFF6C6C70);
+    final selectionColor = theme.primaryColor.withValues(alpha: 0.35);
 
     return CallbackShortcuts(
       bindings: {
@@ -104,9 +113,9 @@ class _TextEditorWorkspaceState extends State<TextEditorWorkspace> {
         child: Container(
           constraints: const BoxConstraints(minHeight: 380),
           decoration: BoxDecoration(
-            color: MacosTheme.of(context).canvasColor,
+            color: theme.canvasColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: MacosTheme.of(context).dividerColor),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -117,11 +126,7 @@ class _TextEditorWorkspaceState extends State<TextEditorWorkspace> {
                   vertical: 13,
                 ),
                 decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(
-                      color: MacosTheme.of(context).dividerColor,
-                    ),
-                  ),
+                  border: Border(bottom: BorderSide(color: theme.dividerColor)),
                 ),
                 child: Row(
                   children: [
@@ -175,7 +180,18 @@ class _TextEditorWorkspaceState extends State<TextEditorWorkspace> {
                       }
                       widget.session.updateText(_controller.text);
                     },
-                    style: CodeEditorStyle(fontSize: 13, fontFamily: 'Menlo'),
+                    style: CodeEditorStyle(
+                      fontSize: 13,
+                      fontFamily: 'Menlo',
+                      fontHeight: 1.55,
+                      textColor: textColor,
+                      backgroundColor: theme.canvasColor,
+                      cursorColor: theme.primaryColor,
+                      selectionColor: selectionColor,
+                      cursorLineColor: theme.primaryColor.withValues(
+                        alpha: 0.08,
+                      ),
+                    ),
                     indicatorBuilder:
                         (
                           context,
@@ -186,6 +202,11 @@ class _TextEditorWorkspaceState extends State<TextEditorWorkspace> {
                           return DefaultCodeLineNumber(
                             controller: editingController,
                             notifier: notifier,
+                            textStyle: TextStyle(
+                              color: gutterColor,
+                              fontSize: 12,
+                              fontFamily: 'Menlo',
+                            ),
                           );
                         },
                   ),

@@ -3,16 +3,18 @@ import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
-/// Searchable mock resources for the currently selected library category.
+/// Searchable resources for the currently selected library category.
 class ResourceListPane extends StatefulWidget {
   const ResourceListPane({
     required this.controller,
     required this.onResourceSelected,
+    this.onToggleFavorite,
     super.key,
   });
 
   final WorkbenchController controller;
   final ValueChanged<WorkbenchResource> onResourceSelected;
+  final Future<void> Function(String resourceId)? onToggleFavorite;
 
   @override
   State<ResourceListPane> createState() => _ResourceListPaneState();
@@ -42,6 +44,7 @@ class _ResourceListPaneState extends State<ResourceListPane> {
   @override
   Widget build(BuildContext context) {
     final resources = _visibleResources;
+    final typography = MacosTheme.of(context).typography;
 
     return SizedBox(
       width: 320,
@@ -52,7 +55,7 @@ class _ResourceListPaneState extends State<ResourceListPane> {
           children: [
             Text(
               widget.controller.labelFor(widget.controller.selectedDestination),
-              style: MacosTheme.of(context).typography.title2,
+              style: typography.title2,
             ),
             const SizedBox(height: 12),
             Semantics(
@@ -67,29 +70,51 @@ class _ResourceListPaneState extends State<ResourceListPane> {
             ),
             const SizedBox(height: 14),
             if (resources.isEmpty)
-              Text('未找到匹配资源', style: MacosTheme.of(context).typography.body)
+              Text('未找到匹配资源', style: typography.body)
             else
               for (final resource in resources)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: PushButton(
-                    controlSize: ControlSize.large,
-                    semanticLabel: '选择资源：${resource.title}',
-                    onPressed: () => widget.onResourceSelected(resource),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(resource.title),
-                          const SizedBox(height: 2),
-                          Text(
-                            resource.subtitle,
-                            style: MacosTheme.of(context).typography.caption1,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: PushButton(
+                          controlSize: ControlSize.large,
+                          semanticLabel: '选择资源：${resource.title}',
+                          onPressed: () => widget.onResourceSelected(resource),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${resource.isFavorite ? '★ ' : ''}${resource.title}',
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  resource.subtitle,
+                                  style: typography.caption1,
+                                ),
+                              ],
+                            ),
                           ),
-                        ],
+                        ),
                       ),
-                    ),
+                      if (widget.onToggleFavorite != null)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: PushButton(
+                            controlSize: ControlSize.small,
+                            secondary: true,
+                            semanticLabel: resource.isFavorite
+                                ? '取消收藏：${resource.title}'
+                                : '收藏：${resource.title}',
+                            onPressed: () =>
+                                widget.onToggleFavorite!(resource.id),
+                            child: Text(resource.isFavorite ? '已收藏' : '收藏'),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
           ],

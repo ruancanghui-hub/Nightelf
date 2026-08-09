@@ -136,4 +136,33 @@ class WorkbenchController extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  void applyFavoriteIds(Set<String> favoriteIds) {
+    for (var index = 0; index < _resources.length; index += 1) {
+      final resource = _resources[index];
+      final nextFavorite = favoriteIds.contains(resource.id);
+      if (resource.isFavorite != nextFavorite) {
+        _resources[index] = resource.copyWith(isFavorite: nextFavorite);
+      }
+    }
+    if (_selectedResource != null) {
+      _selectedResource = resourceById(_selectedResource!.id);
+    }
+    notifyListeners();
+  }
+
+  /// Toggles favorite for [id] and returns the updated favorite ID set.
+  Set<String> toggleFavorite(String id) {
+    final index = _resources.indexWhere((resource) => resource.id == id);
+    if (index < 0) {
+      return favoriteResources.map((resource) => resource.id).toSet();
+    }
+    final current = _resources[index];
+    _resources[index] = current.copyWith(isFavorite: !current.isFavorite);
+    if (_selectedResource?.id == id) {
+      _selectedResource = _resources[index];
+    }
+    notifyListeners();
+    return favoriteResources.map((resource) => resource.id).toSet();
+  }
 }

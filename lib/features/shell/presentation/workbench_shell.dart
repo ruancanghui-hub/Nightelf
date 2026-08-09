@@ -20,20 +20,30 @@ class WorkbenchShell extends StatefulWidget {
     this.resources,
     this.onDestinationChanged,
     this.vaultRootPath,
+    this.onToggleFavorite,
   });
 
   final List<WorkbenchResource>? resources;
   final ValueChanged<ResourceType>? onDestinationChanged;
   final String? vaultRootPath;
+  final Future<void> Function(String resourceId)? onToggleFavorite;
 
   @override
-  State<WorkbenchShell> createState() => _WorkbenchShellState();
+  State<WorkbenchShell> createState() => WorkbenchShellState();
 }
 
-class _WorkbenchShellState extends State<WorkbenchShell> {
+class WorkbenchShellState extends State<WorkbenchShell> {
   late final WorkbenchController _controller;
   late final WorkspaceTabsController _tabsController;
   bool _isPaletteOpen = false;
+
+  void applyFavoriteIds(Set<String> favoriteIds) {
+    _controller.applyFavoriteIds(favoriteIds);
+  }
+
+  Set<String> toggleFavorite(String resourceId) {
+    return _controller.toggleFavorite(resourceId);
+  }
 
   @override
   void initState() {
@@ -145,10 +155,12 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                               WorkbenchSidebar(
                                 controller: _controller,
                                 onDestinationSelected: _selectDestination,
+                                onResourceSelected: _openResource,
                               ),
                               ResourceListPane(
                                 controller: _controller,
                                 onResourceSelected: _openResource,
+                                onToggleFavorite: widget.onToggleFavorite,
                               ),
                               Expanded(
                                 child: Column(
@@ -162,6 +174,8 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                                       child: WorkspaceContent(
                                         resource: _activeResource,
                                         vaultRootPath: widget.vaultRootPath,
+                                        onToggleFavorite:
+                                            widget.onToggleFavorite,
                                       ),
                                     ),
                                   ],
