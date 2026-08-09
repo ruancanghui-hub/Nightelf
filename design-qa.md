@@ -41,3 +41,29 @@ Focused regions checked: sidebar navigation states, toolbar/search, resource pan
 - [x] Keyboard/semantic navigation contracts retained
 
 final result: passed
+
+---
+
+# Website Link Workspace Design QA
+
+- Reference: `exec-bce54acd-1b6c-4489-9003-10637f96186e.png` (1653 × 951)
+- Implementation capture: `docs/design-qa/website-link-implementation.jpeg` (1494 × 768)
+- Combined comparison: `docs/design-qa/website-link-comparison.png`
+- State: `mariuti.com` selected, global inspector visible, live WebView loaded
+- Result: passed
+
+## Five-surface comparison
+
+1. **Typography** — The production screen preserves the existing macOS app type system while matching the reference hierarchy: link title, URL, section labels, field labels, and action labels remain clearly separated.
+2. **Spacing and layout** — The right content is divided into a link identity header, navigation/address toolbar, live browser, and fixed-width information inspector. At narrower widths it stacks without clipping.
+3. **Color and surfaces** — Emerald borders, muted green-black surfaces, active green states, and restrained separators match the Nightelf visual language without introducing unrelated colors.
+4. **Browser content** — The browser uses the real saved URL and live WebView. Page content differs from the static reference because the external site has changed, not because of a local layout deviation.
+5. **Copy and data** — Field and action copy matches the approved Chinese design. Empty tags or notes reflect the selected saved resource rather than placeholder content.
+
+## Observations
+
+- The implementation keeps the existing global tab strip and resource list because the requested scope is the website-link right content area.
+- The inspector is responsive to the available window width; its fields and actions remain readable and keyboard accessible.
+- No blocking visual, interaction, overflow, or contrast issue was found in the checked state.
+
+final result: passed
