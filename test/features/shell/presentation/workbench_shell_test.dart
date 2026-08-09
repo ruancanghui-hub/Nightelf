@@ -1,7 +1,8 @@
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/material.dart' show ThemeMode;
-import 'package:flutter/widgets.dart' show Size, ValueKey;
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -18,7 +19,11 @@ void main() {
         themeMode: themeMode,
         theme: MacosThemeData.light(),
         darkTheme: MacosThemeData.dark(),
-        home: WorkbenchShell(vaultRootPath: overview ? '/test-vault' : null),
+        home: WorkbenchShadScope(
+          child: WorkbenchShell(
+            vaultRootPath: overview ? '/test-vault' : null,
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -53,25 +58,10 @@ void main() {
     expect(find.text('Nightelf · AI 工作台'), findsOneWidget);
     expect(find.text('⌘K'), findsOneWidget);
     expect(find.text('同步'), findsOneWidget);
-    expect(
-      find.byWidgetPredicate(
-        (widget) => widget is PushButton && widget.semanticLabel == '打开命令面板',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is MacosIconButton && widget.semanticLabel == '查看历史记录',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byWidgetPredicate(
-        (widget) => widget is MacosIconButton && widget.semanticLabel == '切换视图',
-      ),
-      findsOneWidget,
-    );
+    expect(find.byType(WorkbenchSearchTrigger), findsOneWidget);
+    expect(find.bySemanticsLabel('打开命令面板'), findsOneWidget);
+    expect(find.bySemanticsLabel('查看历史记录'), findsOneWidget);
+    expect(find.bySemanticsLabel('切换视图'), findsOneWidget);
   });
 
   testWidgets('renders the shell at desktop size in dark and light themes', (

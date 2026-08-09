@@ -5,6 +5,7 @@ import 'package:ai_workbench/features/links/data/file_link_repository.dart';
 import 'package:ai_workbench/features/links/presentation/link_workspace.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/shared/io/atomic_file_writer.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
@@ -63,15 +64,17 @@ void main() {
     await tester.pumpWidget(
       MacosApp(
         theme: MacosThemeData.dark(),
-        home: MacosWindow(
-          child: LinkWorkspace(
-            controller: controller,
-            resource: resource,
-            onToggleFavorite: onToggleFavorite,
-            browserBuilder: (context, url, onOpenExternally) => ColoredBox(
-              key: const ValueKey('fake-link-browser'),
-              color: const Color(0xFF111820),
-              child: Center(child: Text('browser:$url')),
+        home: WorkbenchShadScope(
+          child: MacosWindow(
+            child: LinkWorkspace(
+              controller: controller,
+              resource: resource,
+              onToggleFavorite: onToggleFavorite,
+              browserBuilder: (context, url, onOpenExternally) => ColoredBox(
+                key: const ValueKey('fake-link-browser'),
+                color: const Color(0xFF111820),
+                child: Center(child: Text('browser:$url')),
+              ),
             ),
           ),
         ),
@@ -140,7 +143,7 @@ void main() {
     );
     expect(toggled, ['link-id']);
 
-    final titleField = tester.widget<MacosTextField>(
+    final titleField = tester.widget<WorkbenchInput>(
       find.byKey(const ValueKey('link-title-field')),
     );
     expect(titleField.onSubmitted, isNotNull);

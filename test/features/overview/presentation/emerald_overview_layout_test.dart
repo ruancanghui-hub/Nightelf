@@ -1,6 +1,7 @@
 import 'package:ai_workbench/features/overview/presentation/emerald_overview_dashboard.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
@@ -14,7 +15,9 @@ void main() {
     await tester.pumpWidget(
       MacosApp(
         theme: MacosThemeData.dark(),
-        home: const WorkbenchShell(vaultRootPath: '/reference-vault'),
+        home: const WorkbenchShadScope(
+          child: WorkbenchShell(vaultRootPath: '/reference-vault'),
+        ),
       ),
     );
     await tester.pumpAndSettle();

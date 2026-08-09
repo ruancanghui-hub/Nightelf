@@ -8,6 +8,7 @@ import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/vault/application/vault_controller.dart';
 import 'package:ai_workbench/features/vault/application/vault_state.dart';
 import 'package:ai_workbench/shared/platform/directory_picker_service.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/services.dart';
@@ -63,21 +64,23 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
       themeMode: widget.themeMode,
       theme: WorkbenchTheme.light(),
       darkTheme: WorkbenchTheme.dark(),
-      home: _showSplash
-          ? NightelfSplashScreen(
-              onFinished: () {
-                if (mounted) {
-                  setState(() => _showSplash = false);
-                }
-              },
-            )
-          : widget.hasVault
-          ? const WorkbenchShell()
-          : ListenableBuilder(
-              listenable: controller,
-              builder: (context, _) =>
-                  _homeForState(controller, controller.state),
-            ),
+      home: WorkbenchShadScope(
+        child: _showSplash
+            ? NightelfSplashScreen(
+                onFinished: () {
+                  if (mounted) {
+                    setState(() => _showSplash = false);
+                  }
+                },
+              )
+            : widget.hasVault
+            ? const WorkbenchShell()
+            : ListenableBuilder(
+                listenable: controller,
+                builder: (context, _) =>
+                    _homeForState(controller, controller.state),
+              ),
+      ),
     );
   }
 
@@ -262,8 +265,9 @@ class _WelcomeScaffold extends StatelessWidget {
                     const SizedBox(height: 28),
                     SizedBox(
                       width: double.infinity,
-                      child: PushButton(
-                        controlSize: ControlSize.large,
+                      child: WorkbenchButton(
+                        size: WorkbenchButtonSize.lg,
+                        expands: true,
                         onPressed: onCreate,
                         child: const Text('创建 Vault'),
                       ),
@@ -271,9 +275,10 @@ class _WelcomeScaffold extends StatelessWidget {
                     const SizedBox(height: 12),
                     SizedBox(
                       width: double.infinity,
-                      child: PushButton(
-                        controlSize: ControlSize.large,
-                        secondary: true,
+                      child: WorkbenchButton(
+                        size: WorkbenchButtonSize.lg,
+                        variant: WorkbenchButtonVariant.outline,
+                        expands: true,
                         onPressed: onOpen,
                         child: const Text('打开 Vault'),
                       ),

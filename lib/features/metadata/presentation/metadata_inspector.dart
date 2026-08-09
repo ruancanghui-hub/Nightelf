@@ -1,5 +1,6 @@
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -149,35 +150,28 @@ class _MetadataInspectorState extends State<MetadataInspector> {
           const SizedBox(height: 12),
           Text('状态：${widget.statusLabel}', style: typography.caption1),
           const SizedBox(height: 16),
-          Text('描述', style: typography.subheadline),
+          const WorkbenchFieldLabel('描述'),
           const SizedBox(height: 6),
-          Semantics(
-            label: '资源描述',
-            textField: true,
-            child: MacosTextField(
-              controller: _descriptionController,
-              maxLines: 3,
-              placeholder: '补充说明',
-              onEditingComplete: _persistDescription,
-              onSubmitted: (_) => _persistDescription(),
-            ),
+          WorkbenchInput(
+            controller: _descriptionController,
+            maxLines: 3,
+            placeholder: '补充说明',
+            semanticLabel: '资源描述',
+            onEditingComplete: _persistDescription,
+            onSubmitted: (_) => _persistDescription(),
           ),
           const SizedBox(height: 12),
-          Text('标签', style: typography.subheadline),
+          const WorkbenchFieldLabel('标签'),
           const SizedBox(height: 6),
-          Semantics(
-            label: '资源标签',
-            textField: true,
-            child: MacosTextField(
-              controller: _tagsController,
-              placeholder: '用逗号分隔',
-              onEditingComplete: _persistTags,
-              onSubmitted: (_) => _persistTags(),
-            ),
+          WorkbenchInput(
+            controller: _tagsController,
+            placeholder: '用逗号分隔',
+            semanticLabel: '资源标签',
+            onEditingComplete: _persistTags,
+            onSubmitted: (_) => _persistTags(),
           ),
           const SizedBox(height: 16),
-          PushButton(
-            controlSize: ControlSize.large,
+          WorkbenchButton(
             semanticLabel: meta.isFavorite
                 ? '取消收藏：${widget.resource.title}'
                 : '收藏：${widget.resource.title}',
@@ -209,9 +203,9 @@ class _MetadataInspectorState extends State<MetadataInspector> {
                       runSpacing: 6,
                       children: [
                         if (!ref.isMissing && widget.onOpenRelated != null)
-                          PushButton(
-                            controlSize: ControlSize.small,
-                            secondary: true,
+                          WorkbenchButton(
+                            size: WorkbenchButtonSize.sm,
+                            variant: WorkbenchButtonVariant.outline,
                             semanticLabel: '打开关联：${ref.title}',
                             onPressed: () {
                               WorkbenchResource? target;
@@ -227,9 +221,9 @@ class _MetadataInspectorState extends State<MetadataInspector> {
                             },
                             child: const Text('打开'),
                           ),
-                        PushButton(
-                          controlSize: ControlSize.small,
-                          secondary: true,
+                        WorkbenchButton(
+                          size: WorkbenchButtonSize.sm,
+                          variant: WorkbenchButtonVariant.outline,
                           semanticLabel: '移除关联：${ref.resourceId}',
                           onPressed: () =>
                               widget.metadataController.removeRelatedResource(
@@ -239,9 +233,9 @@ class _MetadataInspectorState extends State<MetadataInspector> {
                           child: const Text('移除'),
                         ),
                         if (ref.isMissing)
-                          PushButton(
-                            controlSize: ControlSize.small,
-                            secondary: true,
+                          WorkbenchButton(
+                            size: WorkbenchButtonSize.sm,
+                            variant: WorkbenchButtonVariant.outline,
                             semanticLabel: '重新关联：${ref.resourceId}',
                             onPressed: () => setState(
                               () => _relinkTargetId = ref.resourceId,
@@ -255,8 +249,8 @@ class _MetadataInspectorState extends State<MetadataInspector> {
                       for (final candidate in candidates.take(8))
                         Padding(
                           padding: const EdgeInsets.only(bottom: 4),
-                          child: PushButton(
-                            controlSize: ControlSize.small,
+                          child: WorkbenchButton(
+                            size: WorkbenchButtonSize.sm,
                             semanticLabel: '关联到：${candidate.title}',
                             onPressed: () async {
                               await widget.metadataController
@@ -282,9 +276,9 @@ class _MetadataInspectorState extends State<MetadataInspector> {
           for (final candidate in candidates.take(6))
             Padding(
               padding: const EdgeInsets.only(bottom: 4),
-              child: PushButton(
-                controlSize: ControlSize.small,
-                secondary: true,
+              child: WorkbenchButton(
+                size: WorkbenchButtonSize.sm,
+                variant: WorkbenchButtonVariant.outline,
                 semanticLabel: '添加关联：${candidate.title}',
                 onPressed: () => _addRelated(candidate.id),
                 child: Align(

@@ -1,5 +1,6 @@
 import 'package:ai_workbench/features/shell/application/workbench_controller.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -57,6 +58,25 @@ class _ResourceListPaneState extends State<ResourceListPane> {
     }).toList();
   }
 
+  Widget _actionButton({
+    required String semanticLabel,
+    required VoidCallback onPressed,
+    required String label,
+    WorkbenchButtonVariant variant = WorkbenchButtonVariant.primary,
+  }) {
+    return WorkbenchButton(
+      size: WorkbenchButtonSize.lg,
+      variant: variant,
+      expands: true,
+      semanticLabel: semanticLabel,
+      onPressed: onPressed,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(label),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final resources = _visibleResources;
@@ -75,100 +95,69 @@ class _ResourceListPaneState extends State<ResourceListPane> {
             ),
             if (widget.onCreatePrompt != null) ...[
               const SizedBox(height: 8),
-              PushButton(
-                controlSize: ControlSize.large,
+              _actionButton(
                 semanticLabel: '新建提示词',
                 onPressed: () => widget.onCreatePrompt!(),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('新建提示词'),
-                ),
+                label: '新建提示词',
               ),
             ],
             if (widget.onImportSkill != null) ...[
               const SizedBox(height: 8),
-              PushButton(
-                controlSize: ControlSize.large,
+              _actionButton(
                 semanticLabel: '导入 SKILL 文件夹',
                 onPressed: () => widget.onImportSkill!(),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('导入 SKILL 文件夹'),
-                ),
+                label: '导入 SKILL 文件夹',
               ),
             ],
             if (widget.onCreateMcp != null) ...[
               const SizedBox(height: 8),
-              PushButton(
-                controlSize: ControlSize.large,
+              _actionButton(
                 semanticLabel: '新建 MCP 配置',
                 onPressed: () => widget.onCreateMcp!(),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('新建 MCP 配置'),
-                ),
+                label: '新建 MCP 配置',
               ),
             ],
             if (widget.onPasteLink != null) ...[
               const SizedBox(height: 8),
-              PushButton(
-                controlSize: ControlSize.large,
+              _actionButton(
                 semanticLabel: '从剪贴板粘贴链接',
                 onPressed: () => widget.onPasteLink!(),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('从剪贴板粘贴链接'),
-                ),
+                label: '从剪贴板粘贴链接',
               ),
             ],
             if (widget.onCreateLink != null) ...[
               const SizedBox(height: 8),
-              PushButton(
-                controlSize: ControlSize.large,
-                secondary: true,
+              _actionButton(
                 semanticLabel: '新建空链接',
                 onPressed: () => widget.onCreateLink!(),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('新建空链接'),
-                ),
+                label: '新建空链接',
+                variant: WorkbenchButtonVariant.outline,
               ),
             ],
             if (widget.onCreateWorkflow != null) ...[
               const SizedBox(height: 8),
-              PushButton(
-                controlSize: ControlSize.large,
+              _actionButton(
                 semanticLabel: '新建 Workflow',
                 onPressed: () => widget.onCreateWorkflow!(),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('新建 Workflow'),
-                ),
+                label: '新建 Workflow',
               ),
             ],
             if (widget.onImportWorkflow != null) ...[
               const SizedBox(height: 8),
-              PushButton(
-                controlSize: ControlSize.large,
-                secondary: true,
+              _actionButton(
                 semanticLabel: '导入 Workflow 文件',
                 onPressed: () => widget.onImportWorkflow!(),
-                child: const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('导入 Workflow 文件'),
-                ),
+                label: '导入 Workflow 文件',
+                variant: WorkbenchButtonVariant.outline,
               ),
             ],
             const SizedBox(height: 12),
-            Semantics(
-              label: '搜索当前分类',
-              textField: true,
-              child: MacosTextField(
-                key: const ValueKey('resource-search'),
-                focusNode: _searchFocusNode,
-                placeholder: '搜索当前分类',
-                onChanged: (query) => setState(() => _query = query),
-              ),
+            WorkbenchInput(
+              key: const ValueKey('resource-search'),
+              focusNode: _searchFocusNode,
+              placeholder: '搜索当前分类',
+              semanticLabel: '搜索当前分类',
+              onChanged: (query) => setState(() => _query = query),
             ),
             const SizedBox(height: 14),
             if (resources.isEmpty)
@@ -196,8 +185,10 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                         child: Row(
                           children: [
                             Expanded(
-                              child: PushButton(
-                                controlSize: ControlSize.large,
+                              child: WorkbenchButton(
+                                size: WorkbenchButtonSize.lg,
+                                variant: WorkbenchButtonVariant.outline,
+                                expands: true,
                                 semanticLabel: '选择资源：${resource.title}',
                                 onPressed: () =>
                                     widget.onResourceSelected(resource),
@@ -223,9 +214,9 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                             if (widget.onDuplicatePrompt != null)
                               Padding(
                                 padding: const EdgeInsets.only(left: 6),
-                                child: PushButton(
-                                  controlSize: ControlSize.small,
-                                  secondary: true,
+                                child: WorkbenchButton(
+                                  size: WorkbenchButtonSize.sm,
+                                  variant: WorkbenchButtonVariant.ghost,
                                   semanticLabel: '复制文件：${resource.title}',
                                   onPressed: () =>
                                       widget.onDuplicatePrompt!(resource),
@@ -235,9 +226,9 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                             if (widget.onToggleFavorite != null)
                               Padding(
                                 padding: const EdgeInsets.only(left: 6),
-                                child: PushButton(
-                                  controlSize: ControlSize.small,
-                                  secondary: true,
+                                child: WorkbenchButton(
+                                  size: WorkbenchButtonSize.sm,
+                                  variant: WorkbenchButtonVariant.ghost,
                                   semanticLabel: resource.isFavorite
                                       ? '取消收藏：${resource.title}'
                                       : '收藏：${resource.title}',

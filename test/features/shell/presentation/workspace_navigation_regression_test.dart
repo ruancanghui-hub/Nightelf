@@ -2,16 +2,23 @@ import 'dart:ui' show Tristate;
 
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
-import 'package:flutter/widgets.dart' show Size, SizedBox;
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 void main() {
-  Future<void> pumpShell(WidgetTester tester) async {
+  Future<void> pumpShell(
+    WidgetTester tester, {
+    Widget? home,
+  }) async {
     await tester.binding.setSurfaceSize(const Size(1440, 1024));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
-      MacosApp(theme: MacosThemeData.light(), home: const WorkbenchShell()),
+      MacosApp(
+        theme: MacosThemeData.light(),
+        home: WorkbenchShadScope(child: home ?? const WorkbenchShell()),
+      ),
     );
     await tester.pumpAndSettle();
   }
@@ -72,26 +79,20 @@ void main() {
   testWidgets('empty destination clears the right-hand content', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(1440, 1024));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(
-      MacosApp(
-        theme: MacosThemeData.light(),
-        home: WorkbenchShell(
-          resources: const [
-            WorkbenchResource(
-              id: 'prompt-1',
-              type: ResourceType.aiPrompt,
-              title: '仅提示词',
-              subtitle: '',
-              isFavorite: false,
-            ),
-          ],
-        ),
+    await pumpShell(
+      tester,
+      home: WorkbenchShell(
+        resources: const [
+          WorkbenchResource(
+            id: 'prompt-1',
+            type: ResourceType.aiPrompt,
+            title: '仅提示词',
+            subtitle: '',
+            isFavorite: false,
+          ),
+        ],
       ),
     );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1));
 
     expect(find.text('资源 ID：prompt-1'), findsOneWidget);
 

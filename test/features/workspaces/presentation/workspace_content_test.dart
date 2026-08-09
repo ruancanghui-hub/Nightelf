@@ -4,6 +4,7 @@ import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/workspaces/presentation/skill_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/workflow_workspace.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
@@ -16,10 +17,12 @@ void main() {
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
-      MacosApp(theme: MacosThemeData.dark(), home: const WorkbenchShell()),
+      MacosApp(
+        theme: MacosThemeData.dark(),
+        home: const WorkbenchShadScope(child: WorkbenchShell()),
+      ),
     );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pumpAndSettle();
   }
 
   Finder navigationButton(String label) => find.byWidgetPredicate(
@@ -27,9 +30,8 @@ void main() {
   );
 
   Future<void> openWorkspace(WidgetTester tester, String label) async {
-    await tester.tap(navigationButton(label));
+    await tester.tap(navigationButton(label), warnIfMissed: false);
     await tester.pumpAndSettle();
-    await tester.pump(const Duration(milliseconds: 1));
   }
 
   Future<void> pumpUnboundedSurface(
@@ -93,12 +95,11 @@ void main() {
     await pumpShell(tester);
     await openWorkspace(tester, 'SKILL 文件夹');
 
-    expect(find.text('目录预览'), findsOneWidget);
-    expect(find.text('SKILL.md'), findsWidgets);
-    expect(find.text('模拟可编辑外观'), findsOneWidget);
+    expect(find.text('打开 Vault 中的 SKILL 文件夹以浏览与编辑。'), findsOneWidget);
     expect(find.text('模拟草稿 · 未写入磁盘'), findsWidgets);
     expect(find.text('保存模拟版本'), findsOneWidget);
-    expect(find.text('只读模拟源码'), findsNothing);
+    expect(find.text('检查模拟结构'), findsOneWidget);
+    expect(find.text('资源 ID：skill-product-copy'), findsOneWidget);
   });
 
   testWidgets(
@@ -107,30 +108,27 @@ void main() {
       await pumpShell(tester);
       await openWorkspace(tester, 'MCP 配置');
 
-      expect(find.text('只读 JSON 预览'), findsOneWidget);
-      expect(find.textContaining('filesystem'), findsOneWidget);
+      expect(find.text('打开 Vault 中的 MCP 配置以编辑 JSON。'), findsOneWidget);
+      expect(find.text('只读 · 未连接服务'), findsWidgets);
+      expect(find.text('资源 ID：mcp-local-docs'), findsOneWidget);
 
-      for (final label in const ['复制配置', '在终端打开']) {
+      for (final label in const ['检查模拟语法', '查看模拟详情']) {
         final control = find.byWidgetPredicate(
           (widget) => widget is PushButton && widget.semanticLabel == label,
         );
         expect(control, findsOneWidget);
         expect(tester.widget<PushButton>(control).onPressed, isNull);
+        expect(
+          find.ancestor(
+            of: control,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is MacosTooltip && widget.message == '视觉占位：操作尚未接入',
+            ),
+          ),
+          findsOneWidget,
+        );
       }
-
-      expect(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is MacosTooltip && widget.message == '视觉占位：尚未接入剪贴板',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.byWidgetPredicate(
-          (widget) => widget is MacosTooltip && widget.message == '视觉占位：尚未接入终端',
-        ),
-        findsOneWidget,
-      );
     },
   );
 
@@ -140,10 +138,11 @@ void main() {
     await pumpShell(tester);
     await openWorkspace(tester, '网站链接');
 
-    expect(find.text('内部浏览器 · 静态预览'), findsOneWidget);
-    expect(find.text('不会发起网络请求'), findsOneWidget);
-    expect(find.text('https://developer.apple.com/design/'), findsOneWidget);
-    expect(find.text('此页面不可导航'), findsOneWidget);
+    expect(find.text('静态预览 · 无网络'), findsWidgets);
+    expect(find.text('打开或粘贴一个网站链接以在内置浏览器中查看。'), findsOneWidget);
+    expect(find.text('资源 ID：link-apple-hig'), findsOneWidget);
+    expect(find.text('保存模拟快照'), findsOneWidget);
+    expect(find.text('复制链接'), findsOneWidget);
   });
 
   testWidgets('workflow workspace pairs Mermaid source with a static canvas', (
@@ -152,12 +151,11 @@ void main() {
     await pumpShell(tester);
     await openWorkspace(tester, 'Workflow 文件');
 
-    expect(find.text('Mermaid 源码'), findsOneWidget);
-    expect(find.text('静态画布 · 不可互动'), findsOneWidget);
-    expect(find.text('读取变更'), findsOneWidget);
-    expect(find.text('生成说明'), findsOneWidget);
-    expect(find.text('人工确认'), findsOneWidget);
+    expect(find.text('选择或新建一个 Workflow 文件'), findsOneWidget);
     expect(find.text('未执行 · 视觉模拟'), findsWidgets);
+    expect(find.text('保存模拟版本'), findsOneWidget);
+    expect(find.text('检查模拟流程'), findsOneWidget);
+    expect(find.text('资源 ID：workflow-release'), findsOneWidget);
   });
 
   testWidgets('all workspaces render without overflow at compact width', (
@@ -211,7 +209,10 @@ void main() {
     ]) {
       await tester.binding.setSurfaceSize(Size(testCase.windowWidth, 720));
       await tester.pumpWidget(
-        MacosApp(theme: MacosThemeData.dark(), home: const WorkbenchShell()),
+        MacosApp(
+          theme: MacosThemeData.dark(),
+          home: const WorkbenchShadScope(child: WorkbenchShell()),
+        ),
       );
       await tester.pumpAndSettle();
       await openWorkspace(tester, testCase.destination);
@@ -259,7 +260,7 @@ void main() {
         );
       }
 
-      final search = tester.widget<MacosSearchField>(
+      final search = tester.widget<WorkbenchInput>(
         find.byKey(const ValueKey('resource-search')),
       );
       expect(search.focusNode, isNotNull);

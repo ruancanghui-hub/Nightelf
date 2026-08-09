@@ -280,37 +280,23 @@ class EmeraldOverviewDashboard extends StatelessWidget {
             colorBlendMode: BlendMode.multiply,
           ),
           const ColoredBox(color: Color(0x94030B09)),
-          ShadTheme(
-            data: ShadThemeData(
-              colorScheme: const ShadGreenColorScheme.dark(
-                background: _panel,
-                foreground: Color(0xFFF2FFF8),
-                primary: _emerald,
-                primaryForeground: _canvas,
-                border: _border,
-                ring: _emerald,
-              ),
-              brightness: Brightness.dark,
-              radius: BorderRadius.circular(16),
+          ShadAlert(
+            icon: const Icon(
+              LucideIcons.shieldCheck,
+              color: _emerald,
+              size: 29,
             ),
-            child: ShadAlert(
-              icon: const Icon(
-                LucideIcons.shieldCheck,
-                color: _emerald,
-                size: 29,
-              ),
-              title: const Text('Vault 已就绪'),
-              description: const Padding(
-                padding: EdgeInsets.only(top: 10),
-                child: Text('你的 AI 资源库运行正常，所有分类与索引已同步完成。\n\n查看状态详情  ›'),
-              ),
-              decoration: ShadDecoration(
-                color: const Color(0x00000000),
-                border: const ShadBorder.fromBorderSide(
-                  ShadBorderSide(color: _border),
-                  radius: BorderRadius.all(Radius.circular(16)),
-                  padding: EdgeInsets.all(20),
-                ),
+            title: const Text('Vault 已就绪'),
+            description: const Padding(
+              padding: EdgeInsets.only(top: 10),
+              child: Text('你的 AI 资源库运行正常，所有分类与索引已同步完成。\n\n查看状态详情  ›'),
+            ),
+            decoration: ShadDecoration(
+              color: const Color(0x00000000),
+              border: const ShadBorder.fromBorderSide(
+                ShadBorderSide(color: _border),
+                radius: BorderRadius.all(Radius.circular(16)),
+                padding: EdgeInsets.all(20),
               ),
             ),
           ),

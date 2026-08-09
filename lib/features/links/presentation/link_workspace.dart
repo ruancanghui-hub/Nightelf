@@ -2,6 +2,7 @@ import 'package:ai_workbench/features/links/application/link_controller.dart';
 import 'package:ai_workbench/features/links/presentation/link_in_app_browser.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
@@ -471,9 +472,9 @@ class _LinkDetailsInspectorState extends State<_LinkDetailsInspector> {
               ),
             ),
             const SizedBox(height: 22),
-            const _InspectorLabel('标题'),
+            const WorkbenchFieldLabel('标题'),
             const SizedBox(height: 7),
-            MacosTextField(
+            WorkbenchInput(
               key: const ValueKey('link-title-field'),
               controller: widget.titleController,
               placeholder: '输入标题',
@@ -482,9 +483,9 @@ class _LinkDetailsInspectorState extends State<_LinkDetailsInspector> {
             const SizedBox(height: 18),
             Row(
               children: [
-                const Expanded(child: _InspectorLabel('标签')),
+                const Expanded(child: WorkbenchFieldLabel('标签')),
                 if (widget.metadataController != null)
-                  MacosIconButton(
+                  WorkbenchIconButton(
                     icon: const Icon(LucideIcons.plus, size: 15),
                     semanticLabel: '编辑标签',
                     onPressed: () => setState(() => _editingTags = true),
@@ -507,7 +508,7 @@ class _LinkDetailsInspectorState extends State<_LinkDetailsInspector> {
             ),
             if (_editingTags) ...[
               const SizedBox(height: 9),
-              MacosTextField(
+              WorkbenchInput(
                 key: const ValueKey('link-tags-field'),
                 controller: _tagsController,
                 placeholder: '用逗号分隔',
@@ -516,9 +517,9 @@ class _LinkDetailsInspectorState extends State<_LinkDetailsInspector> {
               ),
             ],
             const SizedBox(height: 20),
-            const _InspectorLabel('备注'),
+            const WorkbenchFieldLabel('备注'),
             const SizedBox(height: 7),
-            MacosTextField(
+            WorkbenchInput(
               key: const ValueKey('link-notes-field'),
               controller: widget.notesController,
               placeholder: '补充网站用途或阅读提示',
@@ -543,30 +544,24 @@ class _LinkDetailsInspectorState extends State<_LinkDetailsInspector> {
             Row(
               children: [
                 Expanded(
-                  child: PushButton(
+                  child: WorkbenchButton(
                     key: const ValueKey('link-copy-button'),
-                    controlSize: ControlSize.large,
+                    size: WorkbenchButtonSize.lg,
+                    expands: true,
                     semanticLabel: '复制链接',
                     onPressed: widget.controller.copyUrl,
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(LucideIcons.copy, size: 16),
-                        SizedBox(width: 8),
-                        Text('复制链接'),
-                      ],
-                    ),
+                    leading: const Icon(LucideIcons.copy, size: 16),
+                    child: const Text('复制链接'),
                   ),
                 ),
                 const SizedBox(width: 8),
-                MacosTooltip(
-                  message: '在外部浏览器打开',
-                  child: MacosIconButton(
-                    key: const ValueKey('link-external-button'),
-                    icon: const Icon(LucideIcons.externalLink, size: 17),
-                    semanticLabel: '在外部浏览器打开',
-                    onPressed: widget.controller.openExternally,
-                  ),
+                WorkbenchIconButton(
+                  key: const ValueKey('link-external-button'),
+                  tooltip: '在外部浏览器打开',
+                  semanticLabel: '在外部浏览器打开',
+                  variant: WorkbenchButtonVariant.outline,
+                  icon: const Icon(LucideIcons.externalLink, size: 17),
+                  onPressed: widget.controller.openExternally,
                 ),
               ],
             ),
@@ -595,24 +590,6 @@ class _LinkDetailsInspectorState extends State<_LinkDetailsInspector> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _InspectorLabel extends StatelessWidget {
-  const _InspectorLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: const TextStyle(
-        color: Color(0xFFB8CCC3),
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
       ),
     );
   }

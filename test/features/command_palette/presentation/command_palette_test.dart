@@ -1,4 +1,5 @@
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,7 +12,10 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1440, 1024));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
-      MacosApp(theme: MacosThemeData.light(), home: const WorkbenchShell()),
+      MacosApp(
+        theme: MacosThemeData.light(),
+        home: const WorkbenchShadScope(child: WorkbenchShell()),
+      ),
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1));
