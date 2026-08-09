@@ -36,6 +36,7 @@ class WorkbenchShell extends StatefulWidget {
     this.onDestinationChanged,
     this.vaultRootPath,
     this.onToggleFavorite,
+    this.onDeleteResource,
     this.metadataController,
     this.promptController,
     this.skillController,
@@ -58,6 +59,7 @@ class WorkbenchShell extends StatefulWidget {
   final ValueChanged<ResourceType>? onDestinationChanged;
   final String? vaultRootPath;
   final Future<void> Function(String resourceId)? onToggleFavorite;
+  final Future<void> Function(WorkbenchResource resource)? onDeleteResource;
   final MetadataController? metadataController;
   final PromptController? promptController;
   final SkillController? skillController;
@@ -118,6 +120,14 @@ class WorkbenchShellState extends State<WorkbenchShell> {
         return;
       }
     }
+  }
+
+  /// Closes a tab if it is open (e.g. after the resource was deleted).
+  void closeResourceTab(String resourceId) {
+    if (!_tabsController.tabs.any((tab) => tab.resourceId == resourceId)) {
+      return;
+    }
+    _closeTab(resourceId);
   }
 
   @override
@@ -593,6 +603,8 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                         _openResource,
                                                     onToggleFavorite:
                                                         widget.onToggleFavorite,
+                                                    onDeleteResource:
+                                                        widget.onDeleteResource,
                                                     onCreatePrompt:
                                                         _controller
                                                                 .selectedDestination ==

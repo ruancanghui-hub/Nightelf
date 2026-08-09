@@ -31,6 +31,7 @@ import 'package:ai_workbench/shared/platform/flutter_clipboard_service.dart';
 import 'package:ai_workbench/shared/platform/macos_system_open_service.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 class OpenVaultWorkbench extends StatefulWidget {
@@ -237,6 +238,79 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   Future<void> _toggleFavorite(String resourceId) async {
     await _metadataController.toggleFavorite(resourceId);
+  }
+
+  Future<bool> _confirmDeleteResource(shell.WorkbenchResource resource) async {
+    final confirmed = await showMacosAlertDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return MacosAlertDialog(
+          appIcon: const Icon(
+            LucideIcons.trash2,
+            color: Color(0xFFE35D6A),
+            size: 48,
+          ),
+          title: const Text('删除资源'),
+          message: Text(
+            '是否要删除该资源文件？\n\n「${resource.title}」将被移到 Vault 本地回收站。',
+          ),
+          primaryButton: PushButton(
+            controlSize: ControlSize.large,
+            color: const Color(0xFFE35D6A),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('删除'),
+          ),
+          secondaryButton: PushButton(
+            controlSize: ControlSize.large,
+            secondary: true,
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('取消'),
+          ),
+        );
+      },
+    );
+    return confirmed == true;
+  }
+
+  Future<void> _deleteResource(shell.WorkbenchResource resource) async {
+    final relativePath = resource.relativePath;
+    if (relativePath == null || relativePath.isEmpty) {
+      return;
+    }
+    final confirmed = await _confirmDeleteResource(resource);
+    if (!confirmed || !mounted) {
+      return;
+    }
+    try {
+      switch (resource.type) {
+        case shell.ResourceType.aiPrompt:
+          await _promptController.open(relativePath);
+          await _promptController.moveToTrash();
+        case shell.ResourceType.skillFolder:
+          await _skillController.open(relativePath);
+          await _skillController.moveToTrash();
+        case shell.ResourceType.mcpConfiguration:
+          await _mcpController.open(relativePath);
+          await _mcpController.moveToTrash();
+        case shell.ResourceType.websiteLink:
+          await _linkController.open(relativePath);
+          await _linkController.moveToTrash();
+        case shell.ResourceType.workflowFile:
+          await _workflowController.open(relativePath);
+          await _workflowController.moveToTrash();
+      }
+      await widget.vaultController.refreshPaths({relativePath});
+      if (!mounted) {
+        return;
+      }
+      _shellKey.currentState?.closeResourceTab(resource.id);
+      setState(() => _bannerMessage = '已删除：${resource.title}');
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '删除失败：$error');
+    }
   }
 
   Future<void> _openCreated(String relativePath, String message) async {
@@ -449,6 +523,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                     _preferredShellType = type;
                   },
                   onToggleFavorite: _toggleFavorite,
+                  onDeleteResource: _deleteResource,
                   metadataController: _metadataController,
                   promptController: _promptController,
                   skillController: _skillController,

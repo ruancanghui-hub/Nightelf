@@ -10,6 +10,7 @@ class ResourceListPane extends StatefulWidget {
     required this.controller,
     required this.onResourceSelected,
     this.onToggleFavorite,
+    this.onDeleteResource,
     this.onCreatePrompt,
     this.onDuplicatePrompt,
     this.onImportSkill,
@@ -24,6 +25,7 @@ class ResourceListPane extends StatefulWidget {
   final WorkbenchController controller;
   final ValueChanged<WorkbenchResource> onResourceSelected;
   final Future<void> Function(String resourceId)? onToggleFavorite;
+  final Future<void> Function(WorkbenchResource resource)? onDeleteResource;
   final Future<void> Function()? onCreatePrompt;
   final Future<void> Function(WorkbenchResource resource)? onDuplicatePrompt;
   final Future<void> Function()? onImportSkill;
@@ -230,6 +232,20 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                                     resource.isFavorite ? '已收藏' : '收藏',
                                     style: const TextStyle(
                                       color: WorkbenchUiTokens.emerald,
+                                    ),
+                                  ),
+                                ),
+                              if (widget.onDeleteResource != null)
+                                WorkbenchButton(
+                                  size: WorkbenchButtonSize.sm,
+                                  variant: WorkbenchButtonVariant.ghost,
+                                  semanticLabel: '删除资源：${resource.title}',
+                                  onPressed: () =>
+                                      widget.onDeleteResource!(resource),
+                                  child: const Text(
+                                    '删除',
+                                    style: TextStyle(
+                                      color: Color(0xFFE35D6A),
                                     ),
                                   ),
                                 ),
