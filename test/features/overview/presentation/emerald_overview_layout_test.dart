@@ -25,6 +25,13 @@ void main() {
     );
     expect(sidebar.width, closeTo(340, 8));
     expect(find.text('Nightelf · AI 工作台'), findsOneWidget);
+    final logo = tester.widget<Image>(
+      find.byKey(const ValueKey('nightelf-sidebar-logo')),
+    );
+    expect((logo.image as AssetImage).assetName, 'assets/nightelf-logo.png');
+    expect(logo.width, 34);
+    expect(logo.height, 34);
+    expect(logo.fit, BoxFit.contain);
     expect(find.text('最近使用的资源'), findsOneWidget);
     expect(find.text('同步状态'), findsOneWidget);
   });

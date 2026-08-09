@@ -37,3 +37,4 @@ flutter:
   uses-material-design: false
   assets:
     - assets/vault-status-forest.png
+    - assets/nightelf-logo.png

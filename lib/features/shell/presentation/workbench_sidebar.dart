@@ -120,7 +120,6 @@ class WorkbenchSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final typography = MacosTheme.of(context).typography;
-    const accent = Color(0xFF5DE7A7);
 
     return Focus(
       focusNode: focusNode,
@@ -141,11 +140,18 @@ class WorkbenchSidebar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (!compact) ...[
-                const Row(
+                Row(
                   children: [
-                    Icon(LucideIcons.leafyGreen, color: accent, size: 34),
-                    SizedBox(width: 10),
-                    Expanded(
+                    Image.asset(
+                      'assets/nightelf-logo.png',
+                      key: const ValueKey('nightelf-sidebar-logo'),
+                      width: 34,
+                      height: 34,
+                      fit: BoxFit.contain,
+                      semanticLabel: 'Nightelf Logo',
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
                       child: Text(
                         'Nightelf · AI 工作台',
                         style: TextStyle(
