@@ -8,13 +8,16 @@ import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart'
 import 'package:ai_workbench/features/shell/presentation/workbench_toolbar.dart';
 import 'package:ai_workbench/features/shell/presentation/workspace_tab_strip.dart';
 import 'package:ai_workbench/features/workspaces/presentation/workspace_content.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
-/// A dark/light Apple-style three-region shell backed only by mock records.
+/// A dark/light Apple-style three-region shell for mock or Vault-backed records.
 class WorkbenchShell extends StatefulWidget {
-  const WorkbenchShell({super.key});
+  const WorkbenchShell({super.key, this.resources});
+
+  final List<WorkbenchResource>? resources;
 
   @override
   State<WorkbenchShell> createState() => _WorkbenchShellState();
@@ -28,10 +31,21 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
   @override
   void initState() {
     super.initState();
-    _controller = WorkbenchController()..addListener(_refresh);
-    _tabsController = WorkspaceTabsController()
-      ..openTab(_tabFor(_controller.selectedResource))
+    _controller = WorkbenchController(resources: widget.resources)
       ..addListener(_refresh);
+    _tabsController = WorkspaceTabsController()..addListener(_refresh);
+    if (_controller.allResources.isNotEmpty) {
+      _tabsController.openTab(_tabFor(_controller.selectedResource));
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkbenchShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!listEquals(oldWidget.resources, widget.resources) &&
+        widget.resources != null) {
+      _controller.replaceResources(widget.resources!);
+    }
   }
 
   @override

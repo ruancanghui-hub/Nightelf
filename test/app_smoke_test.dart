@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('shows the no-vault welcome state', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: AiWorkbenchApp()));
+    await tester.pumpWidget(
+      const ProviderScope(child: AiWorkbenchApp(skipRestore: true)),
+    );
     await tester.pump(Duration.zero);
 
     expect(find.text('打开 AI 工作台'), findsOneWidget);

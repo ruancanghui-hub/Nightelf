@@ -2,12 +2,17 @@ import 'package:ai_workbench/app/ai_workbench_app.dart';
 import 'package:ai_workbench/app/theme/workbench_theme.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 void main() {
   testWidgets('renders the AI Workbench application title', (tester) async {
-    await tester.pumpWidget(const AiWorkbenchApp(hasVault: true));
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: AiWorkbenchApp(hasVault: true, skipRestore: true),
+      ),
+    );
     await tester.pump(Duration.zero);
 
     expect(
@@ -18,7 +23,11 @@ void main() {
   });
 
   testWidgets('uses the dark workbench theme by default', (tester) async {
-    await tester.pumpWidget(const AiWorkbenchApp(hasVault: true));
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: AiWorkbenchApp(hasVault: true, skipRestore: true),
+      ),
+    );
     await tester.pump(Duration.zero);
 
     expect(
@@ -29,7 +38,13 @@ void main() {
 
   testWidgets('can render with the light workbench theme', (tester) async {
     await tester.pumpWidget(
-      const AiWorkbenchApp(themeMode: ThemeMode.light, hasVault: true),
+      const ProviderScope(
+        child: AiWorkbenchApp(
+          themeMode: ThemeMode.light,
+          hasVault: true,
+          skipRestore: true,
+        ),
+      ),
     );
     await tester.pump(Duration.zero);
 

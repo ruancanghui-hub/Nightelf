@@ -1,9 +1,15 @@
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:flutter/foundation.dart';
 
-/// Keeps the shell navigation deterministic until it is backed by a Vault.
+/// Keeps the shell navigation deterministic for mock or Vault-backed records.
 class WorkbenchController extends ChangeNotifier {
-  WorkbenchController();
+  WorkbenchController({List<WorkbenchResource>? resources})
+    : _resources = List<WorkbenchResource>.from(resources ?? _mockResources) {
+    _selectedDestination = _resources.isEmpty
+        ? ResourceType.aiPrompt
+        : _resources.first.type;
+    _selectedResource = _resources.isEmpty ? null : _resources.first;
+  }
 
   static const Map<ResourceType, String> _destinationLabels = {
     ResourceType.aiPrompt: 'AI 提示词',
@@ -13,7 +19,7 @@ class WorkbenchController extends ChangeNotifier {
     ResourceType.workflowFile: 'Workflow 文件',
   };
 
-  static const List<WorkbenchResource> _resources = [
+  static const List<WorkbenchResource> _mockResources = [
     WorkbenchResource(
       id: 'prompt-release-notes',
       type: ResourceType.aiPrompt,
@@ -58,15 +64,24 @@ class WorkbenchController extends ChangeNotifier {
     ),
   ];
 
-  ResourceType _selectedDestination = ResourceType.aiPrompt;
-  late WorkbenchResource _selectedResource = _resources.first;
+  final List<WorkbenchResource> _resources;
+  late ResourceType _selectedDestination;
+  WorkbenchResource? _selectedResource;
 
   List<String> get destinationLabels =>
       ResourceType.values.map((type) => _destinationLabels[type]!).toList();
 
   ResourceType get selectedDestination => _selectedDestination;
 
-  WorkbenchResource get selectedResource => _selectedResource;
+  WorkbenchResource get selectedResource =>
+      _selectedResource ??
+      WorkbenchResource(
+        id: 'empty',
+        type: _selectedDestination,
+        title: '暂无资源',
+        subtitle: '拖入文件或新建资源后会出现在这里',
+        isFavorite: false,
+      );
 
   List<WorkbenchResource> get allResources => List.unmodifiable(_resources);
 
@@ -92,13 +107,33 @@ class WorkbenchController extends ChangeNotifier {
 
   void selectDestination(ResourceType type) {
     _selectedDestination = type;
-    _selectedResource = selectedResources.first;
+    final matching = selectedResources;
+    _selectedResource = matching.isEmpty ? null : matching.first;
     notifyListeners();
   }
 
   void selectResource(WorkbenchResource resource) {
     _selectedDestination = resource.type;
     _selectedResource = resource;
+    notifyListeners();
+  }
+
+  void replaceResources(List<WorkbenchResource> resources) {
+    _resources
+      ..clear()
+      ..addAll(resources);
+    if (_selectedResource != null) {
+      _selectedResource = resourceById(_selectedResource!.id);
+    }
+    if (_selectedResource == null) {
+      final matching = selectedResources;
+      _selectedResource = matching.isEmpty
+          ? (_resources.isEmpty ? null : _resources.first)
+          : matching.first;
+      if (_selectedResource != null) {
+        _selectedDestination = _selectedResource!.type;
+      }
+    }
     notifyListeners();
   }
 }
