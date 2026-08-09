@@ -102,6 +102,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
               Expanded(
                 child: WorkbenchShell(
                   resources: resources,
+                  vaultRootPath: widget.openState.handle.root.path,
                   onDestinationChanged: (type) {
                     setState(() => _preferredShellType = type);
                   },

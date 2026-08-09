@@ -7,7 +7,7 @@ enum ResourceType {
   workflowFile,
 }
 
-/// A deterministic visual stand-in for a future Vault-backed resource.
+/// A workbench list/detail record, optionally backed by a Vault relative path.
 class WorkbenchResource {
   const WorkbenchResource({
     required this.id,
@@ -15,6 +15,7 @@ class WorkbenchResource {
     required this.title,
     required this.subtitle,
     required this.isFavorite,
+    this.relativePath,
   });
 
   final String id;
@@ -22,4 +23,7 @@ class WorkbenchResource {
   final String title;
   final String subtitle;
   final bool isFavorite;
+
+  /// Vault-relative path when this row comes from a real scan; null for mocks.
+  final String? relativePath;
 }

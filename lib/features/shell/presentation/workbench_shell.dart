@@ -15,10 +15,16 @@ import 'package:macos_ui/macos_ui.dart';
 
 /// A dark/light Apple-style three-region shell for mock or Vault-backed records.
 class WorkbenchShell extends StatefulWidget {
-  const WorkbenchShell({super.key, this.resources, this.onDestinationChanged});
+  const WorkbenchShell({
+    super.key,
+    this.resources,
+    this.onDestinationChanged,
+    this.vaultRootPath,
+  });
 
   final List<WorkbenchResource>? resources;
   final ValueChanged<ResourceType>? onDestinationChanged;
+  final String? vaultRootPath;
 
   @override
   State<WorkbenchShell> createState() => _WorkbenchShellState();
@@ -155,6 +161,7 @@ class _WorkbenchShellState extends State<WorkbenchShell> {
                                     Expanded(
                                       child: WorkspaceContent(
                                         resource: _activeResource,
+                                        vaultRootPath: widget.vaultRootPath,
                                       ),
                                     ),
                                   ],

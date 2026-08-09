@@ -1,3 +1,8 @@
+import 'package:ai_workbench/features/editor/application/document_session.dart';
+import 'package:ai_workbench/features/editor/data/file_document_storage.dart';
+import 'package:ai_workbench/features/editor/domain/document_descriptor.dart';
+import 'package:ai_workbench/features/editor/domain/document_path_resolver.dart';
+import 'package:ai_workbench/features/editor/presentation/text_editor_workspace.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/workspaces/presentation/mcp_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/prompt_workspace.dart';
@@ -7,11 +12,16 @@ import 'package:ai_workbench/features/workspaces/presentation/workflow_workspace
 import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
-/// Chooses a static workspace preview while preserving one shared hierarchy.
+/// Chooses a live editor for Vault-backed resources, otherwise a mock surface.
 class WorkspaceContent extends StatelessWidget {
-  const WorkspaceContent({required this.resource, super.key});
+  const WorkspaceContent({
+    required this.resource,
+    this.vaultRootPath,
+    super.key,
+  });
 
   final WorkbenchResource? resource;
+  final String? vaultRootPath;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +43,15 @@ class WorkspaceContent extends StatelessWidget {
       );
     }
 
-    final presentation = _presentationFor(resource.type);
+    final vaultRoot = vaultRootPath;
+    final descriptor = vaultRoot == null
+        ? null
+        : documentDescriptorFor(resource: resource, vaultRootPath: vaultRoot);
+    final presentation = _presentationFor(
+      resource.type,
+      hasLiveEditor: descriptor != null,
+    );
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -48,13 +66,26 @@ class WorkspaceContent extends StatelessWidget {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
+                final surface = descriptor == null
+                    ? presentation.surface
+                    : _LiveDocumentEditor(
+                        key: ValueKey(
+                          '${resource.id}:${descriptor.absolutePath}',
+                        ),
+                        descriptor: descriptor,
+                        title: _editorTitleFor(resource.type),
+                      );
+
                 if (constraints.maxWidth < 680) {
                   return SingleChildScrollView(
                     padding: const EdgeInsets.all(18),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        presentation.surface,
+                        if (descriptor == null)
+                          surface
+                        else
+                          SizedBox(height: 420, child: surface),
                         const SizedBox(height: 16),
                         _WorkspaceInspector(
                           resource: resource,
@@ -71,7 +102,7 @@ class WorkspaceContent extends StatelessWidget {
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
-                        child: presentation.surface,
+                        child: surface,
                       ),
                     ),
                     SizedBox(
@@ -94,43 +125,97 @@ class WorkspaceContent extends StatelessWidget {
     );
   }
 
-  _WorkspacePresentation _presentationFor(ResourceType type) => switch (type) {
-    ResourceType.aiPrompt => const _WorkspacePresentation(
+  String _editorTitleFor(ResourceType type) => switch (type) {
+    ResourceType.aiPrompt => '提示词源码',
+    ResourceType.skillFolder => 'SKILL.md',
+    ResourceType.mcpConfiguration => 'MCP 配置',
+    ResourceType.websiteLink => '链接内容',
+    ResourceType.workflowFile => 'Workflow 源码',
+  };
+
+  _WorkspacePresentation _presentationFor(
+    ResourceType type, {
+    required bool hasLiveEditor,
+  }) => switch (type) {
+    ResourceType.aiPrompt => _WorkspacePresentation(
       typeLabel: 'AI 提示词',
-      status: '模拟草稿 · 未写入磁盘',
-      primaryAction: '保存模拟版本',
+      status: hasLiveEditor ? '可编辑 · 自动保存' : '模拟草稿 · 未写入磁盘',
+      primaryAction: hasLiveEditor ? '保存' : '保存模拟版本',
       secondaryAction: '预览模拟变更',
-      surface: PromptWorkspace(),
+      surface: const PromptWorkspace(),
+      live: hasLiveEditor,
     ),
-    ResourceType.skillFolder => const _WorkspacePresentation(
+    ResourceType.skillFolder => _WorkspacePresentation(
       typeLabel: 'SKILL 文件夹',
-      status: '模拟草稿 · 未写入磁盘',
-      primaryAction: '保存模拟版本',
+      status: hasLiveEditor ? '编辑 SKILL.md · 自动保存' : '模拟草稿 · 未写入磁盘',
+      primaryAction: hasLiveEditor ? '保存' : '保存模拟版本',
       secondaryAction: '检查模拟结构',
-      surface: SkillWorkspace(),
+      surface: const SkillWorkspace(),
+      live: hasLiveEditor,
     ),
-    ResourceType.mcpConfiguration => const _WorkspacePresentation(
+    ResourceType.mcpConfiguration => _WorkspacePresentation(
       typeLabel: 'MCP 配置',
-      status: '只读 · 未连接服务',
-      primaryAction: '检查模拟语法',
+      status: hasLiveEditor ? '可编辑 · 自动保存' : '只读 · 未连接服务',
+      primaryAction: hasLiveEditor ? '保存' : '检查模拟语法',
       secondaryAction: '查看模拟详情',
-      surface: McpWorkspace(),
+      surface: const McpWorkspace(),
+      live: hasLiveEditor,
     ),
-    ResourceType.websiteLink => const _WorkspacePresentation(
+    ResourceType.websiteLink => _WorkspacePresentation(
       typeLabel: '网站链接',
-      status: '静态预览 · 无网络',
-      primaryAction: '保存模拟快照',
+      status: hasLiveEditor ? '可编辑 · 自动保存' : '静态预览 · 无网络',
+      primaryAction: hasLiveEditor ? '保存' : '保存模拟快照',
       secondaryAction: '查看模拟信息',
-      surface: WebsiteWorkspace(),
+      surface: const WebsiteWorkspace(),
+      live: hasLiveEditor,
     ),
-    ResourceType.workflowFile => const _WorkspacePresentation(
+    ResourceType.workflowFile => _WorkspacePresentation(
       typeLabel: 'Workflow 文件',
-      status: '未执行 · 视觉模拟',
-      primaryAction: '保存模拟版本',
+      status: hasLiveEditor ? '可编辑 · 自动保存' : '未执行 · 视觉模拟',
+      primaryAction: hasLiveEditor ? '保存' : '保存模拟版本',
       secondaryAction: '检查模拟流程',
-      surface: WorkflowWorkspace(),
+      surface: const WorkflowWorkspace(),
+      live: hasLiveEditor,
     ),
   };
+}
+
+class _LiveDocumentEditor extends StatefulWidget {
+  const _LiveDocumentEditor({
+    super.key,
+    required this.descriptor,
+    required this.title,
+  });
+
+  final DocumentDescriptor descriptor;
+  final String title;
+
+  @override
+  State<_LiveDocumentEditor> createState() => _LiveDocumentEditorState();
+}
+
+class _LiveDocumentEditorState extends State<_LiveDocumentEditor> {
+  late final DocumentSession _session;
+
+  @override
+  void initState() {
+    super.initState();
+    _session = DocumentSession(
+      descriptor: widget.descriptor,
+      storage: FileDocumentStorage(),
+    )..load();
+  }
+
+  @override
+  void dispose() {
+    _session.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextEditorWorkspace(session: _session, title: widget.title);
+  }
 }
 
 class _WorkspacePresentation {
@@ -140,6 +225,7 @@ class _WorkspacePresentation {
     required this.primaryAction,
     required this.secondaryAction,
     required this.surface,
+    required this.live,
   });
 
   final String typeLabel;
@@ -147,6 +233,7 @@ class _WorkspacePresentation {
   final String primaryAction;
   final String secondaryAction;
   final Widget surface;
+  final bool live;
 }
 
 class _WorkspaceHeader extends StatelessWidget {
@@ -219,21 +306,31 @@ class _WorkspaceInspector extends StatelessWidget {
           const SizedBox(height: 8),
           Text('资源 ID：${resource.id}'),
           const SizedBox(height: 8),
-          const Text('数据源：模拟资源'),
+          Text(presentation.live ? '数据源：Vault 文件' : '数据源：模拟资源'),
+          if (resource.relativePath != null) ...[
+            const SizedBox(height: 8),
+            Text('路径：${resource.relativePath}'),
+          ],
           const SizedBox(height: 16),
           _StatusPill(label: presentation.status),
           const SizedBox(height: 20),
-          _DisabledWorkspaceAction(label: presentation.primaryAction),
-          const SizedBox(height: 8),
-          _DisabledWorkspaceAction(
-            label: presentation.secondaryAction,
-            secondary: true,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            '所有操作均为视觉模拟，不会读写或执行资源。',
-            style: MacosTheme.of(context).typography.caption1,
-          ),
+          if (!presentation.live) ...[
+            _DisabledWorkspaceAction(label: presentation.primaryAction),
+            const SizedBox(height: 8),
+            _DisabledWorkspaceAction(
+              label: presentation.secondaryAction,
+              secondary: true,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '所有操作均为视觉模拟，不会读写或执行资源。',
+              style: MacosTheme.of(context).typography.caption1,
+            ),
+          ] else
+            Text(
+              '编辑会在约 0.6 秒后自动保存，也可按 ⌘S。',
+              style: MacosTheme.of(context).typography.caption1,
+            ),
         ],
       ),
     );

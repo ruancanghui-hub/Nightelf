@@ -12,6 +12,7 @@ shell.WorkbenchResource workbenchResourceFromRecord(ResourceRecord record) {
         ? record.relativePath
         : record.description,
     isFavorite: false,
+    relativePath: record.relativePath,
   );
 }
 
