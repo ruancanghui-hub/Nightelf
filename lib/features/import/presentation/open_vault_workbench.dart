@@ -159,7 +159,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       title: '未命名提示词',
       body: '# 新提示词\n\n',
     );
-    await widget.vaultController.refreshPaths([created.relativePath]);
+    await widget.vaultController.refreshPaths({created.relativePath});
     setState(() => _bannerMessage = '已创建提示词');
   }
 
