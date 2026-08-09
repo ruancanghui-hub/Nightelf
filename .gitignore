@@ -1,0 +1,19 @@
+.worktrees/
+.superpowers/
+
+# Flutter and Dart tooling
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+build/
+
+# IDE settings
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Operating system files
+.DS_Store
