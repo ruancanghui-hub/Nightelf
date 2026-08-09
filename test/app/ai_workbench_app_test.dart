@@ -7,7 +7,7 @@ import 'package:macos_ui/macos_ui.dart';
 
 void main() {
   testWidgets('renders the AI Workbench application title', (tester) async {
-    await tester.pumpWidget(const AiWorkbenchApp());
+    await tester.pumpWidget(const AiWorkbenchApp(hasVault: true));
     await tester.pump(Duration.zero);
 
     expect(
@@ -18,7 +18,7 @@ void main() {
   });
 
   testWidgets('uses the dark workbench theme by default', (tester) async {
-    await tester.pumpWidget(const AiWorkbenchApp());
+    await tester.pumpWidget(const AiWorkbenchApp(hasVault: true));
     await tester.pump(Duration.zero);
 
     expect(
@@ -28,7 +28,9 @@ void main() {
   });
 
   testWidgets('can render with the light workbench theme', (tester) async {
-    await tester.pumpWidget(const AiWorkbenchApp(themeMode: ThemeMode.light));
+    await tester.pumpWidget(
+      const AiWorkbenchApp(themeMode: ThemeMode.light, hasVault: true),
+    );
     await tester.pump(Duration.zero);
 
     expect(find.text('AI Workbench'), findsOneWidget);
