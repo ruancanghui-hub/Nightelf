@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:ai_workbench/app/ai_workbench_app.dart';
 import 'package:ai_workbench/app/theme/workbench_theme.dart';
+import 'package:ai_workbench/shared/platform/directory_picker_service.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,7 +24,7 @@ void main() {
       tester.widget<MacosApp>(find.byType(MacosApp)).title,
       'Nightelf · AI 工作台',
     );
-    expect(find.text('Nightelf · AI 工作台'), findsOneWidget);
+    expect(find.text('暗夜精灵 · AI 工作台'), findsOneWidget);
   });
 
   testWidgets('uses the dark workbench theme by default', (tester) async {
@@ -56,6 +60,37 @@ void main() {
     expect(logo.fit, BoxFit.contain);
     expect(find.text('创建 Vault'), findsOneWidget);
     expect(find.text('打开 Vault'), findsOneWidget);
+  });
+
+  testWidgets('disables welcome actions while picking a directory', (
+    tester,
+  ) async {
+    final picker = _HangingDirectoryPicker();
+    await tester.pumpWidget(
+      ProviderScope(
+        child: AiWorkbenchApp(skipRestore: true, directoryPicker: picker),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 900));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('打开 Vault'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('正在选择文件夹…'), findsOneWidget);
+    final openButton = tester.widget<WorkbenchButton>(
+      find.ancestor(
+        of: find.text('打开 Vault'),
+        matching: find.byType(WorkbenchButton),
+      ),
+    );
+    expect(openButton.onPressed, isNull);
+    expect(openButton.enabled, isFalse);
+
+    picker.complete(null);
+    await tester.pumpAndSettle();
+    expect(find.text('正在选择文件夹…'), findsNothing);
   });
 
   testWidgets('shows the Nightelf splash for 900 ms before the app home', (
@@ -97,7 +132,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 900));
     await tester.pumpAndSettle();
 
-    expect(find.text('Nightelf · AI 工作台'), findsOneWidget);
+    expect(find.text('暗夜精灵 · AI 工作台'), findsOneWidget);
   });
 
   test('provides distinct dark and light macOS theme tokens', () {
@@ -106,4 +141,23 @@ void main() {
     expect(WorkbenchTheme.light().brightness, Brightness.light);
     expect(WorkbenchTheme.light().canvasColor, const Color(0xFFF5F5F7));
   });
+}
+
+class _HangingDirectoryPicker implements DirectoryPickerService {
+  final Completer<String?> _completer = Completer<String?>();
+
+  void complete(String? path) {
+    if (!_completer.isCompleted) {
+      _completer.complete(path);
+    }
+  }
+
+  @override
+  Future<String?> pickDirectory({
+    String? dialogTitle,
+    String? initialDirectory,
+    bool allowCreate = true,
+  }) {
+    return _completer.future;
+  }
 }

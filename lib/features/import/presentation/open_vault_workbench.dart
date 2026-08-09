@@ -55,35 +55,31 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   late McpController _mcpController;
   late LinkController _linkController;
   late WorkflowController _workflowController;
+  late WorkspaceRestorationRepository _restorationRepository;
   bool _reviewOpen = false;
   String? _bannerMessage;
   shell.ResourceType? _preferredShellType;
   final GlobalKey<WorkbenchShellState> _shellKey =
       GlobalKey<WorkbenchShellState>();
+  List<shell.WorkbenchResource>? _cachedResources;
+  Object? _cachedResourcesKey;
 
   @override
   void initState() {
     super.initState();
-    _metadataController = _createMetadataController(
-      widget.openState.handle.root,
-    );
-    _promptController = _createPromptController(widget.openState.handle.root);
-    _skillController = _createSkillController(widget.openState.handle.root);
-    _mcpController = _createMcpController(widget.openState.handle.root);
-    _linkController = _createLinkController(widget.openState.handle.root);
-    _workflowController = _createWorkflowController(
-      widget.openState.handle.root,
-    );
+    final root = widget.openState.handle.root;
+    _metadataController = _createMetadataController(root);
+    _promptController = _createPromptController(root);
+    _skillController = _createSkillController(root);
+    _mcpController = _createMcpController(root);
+    _linkController = _createLinkController(root);
+    _workflowController = _createWorkflowController(root);
+    _restorationRepository = WorkspaceRestorationRepository(vaultRoot: root);
     _importController = ImportController(
       repository: VaultImportRepository(),
       onImported: (paths) => widget.vaultController.refreshPaths(paths),
     )..addListener(_onImportChanged);
     _metadataController.addListener(_onMetadataChanged);
-    _promptController.addListener(_onPromptChanged);
-    _skillController.addListener(_onSkillChanged);
-    _mcpController.addListener(_onMcpChanged);
-    _linkController.addListener(_onLinkChanged);
-    _workflowController.addListener(_onWorkflowChanged);
     _loadMetadata();
     unawaited(_linkController.restoreFloatingBubbles());
   }
@@ -96,41 +92,30 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       _metadataController
         ..removeListener(_onMetadataChanged)
         ..dispose();
-      _promptController
-        ..removeListener(_onPromptChanged)
-        ..dispose();
-      _skillController
-        ..removeListener(_onSkillChanged)
-        ..dispose();
-      _mcpController
-        ..removeListener(_onMcpChanged)
-        ..dispose();
-      _linkController
-        ..removeListener(_onLinkChanged)
-        ..dispose();
-      _workflowController
-        ..removeListener(_onWorkflowChanged)
-        ..dispose();
-      _metadataController = _createMetadataController(
-        widget.openState.handle.root,
-      )..addListener(_onMetadataChanged);
-      _promptController = _createPromptController(widget.openState.handle.root)
-        ..addListener(_onPromptChanged);
-      _skillController = _createSkillController(widget.openState.handle.root)
-        ..addListener(_onSkillChanged);
-      _mcpController = _createMcpController(widget.openState.handle.root)
-        ..addListener(_onMcpChanged);
-      _linkController = _createLinkController(widget.openState.handle.root)
-        ..addListener(_onLinkChanged);
-      _workflowController = _createWorkflowController(
-        widget.openState.handle.root,
-      )..addListener(_onWorkflowChanged);
+      _promptController.dispose();
+      _skillController.dispose();
+      _mcpController.dispose();
+      _linkController.dispose();
+      _workflowController.dispose();
+      final root = widget.openState.handle.root;
+      _metadataController = _createMetadataController(root)
+        ..addListener(_onMetadataChanged);
+      _promptController = _createPromptController(root);
+      _skillController = _createSkillController(root);
+      _mcpController = _createMcpController(root);
+      _linkController = _createLinkController(root);
+      _workflowController = _createWorkflowController(root);
+      _restorationRepository = WorkspaceRestorationRepository(vaultRoot: root);
+      _cachedResources = null;
+      _cachedResourcesKey = null;
       _loadMetadata();
       unawaited(_linkController.restoreFloatingBubbles());
     } else if (!identical(
       oldWidget.openState.resources,
       widget.openState.resources,
     )) {
+      _cachedResources = null;
+      _cachedResourcesKey = null;
       _shellKey.currentState?.applyFavoriteIds(_metadataController.favoriteIds);
       _shellKey.currentState?.applyRecentEntries(
         _metadataController.recentEntries,
@@ -140,21 +125,11 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   @override
   void dispose() {
-    _workflowController
-      ..removeListener(_onWorkflowChanged)
-      ..dispose();
-    _linkController
-      ..removeListener(_onLinkChanged)
-      ..dispose();
-    _mcpController
-      ..removeListener(_onMcpChanged)
-      ..dispose();
-    _skillController
-      ..removeListener(_onSkillChanged)
-      ..dispose();
-    _promptController
-      ..removeListener(_onPromptChanged)
-      ..dispose();
+    _workflowController.dispose();
+    _linkController.dispose();
+    _mcpController.dispose();
+    _skillController.dispose();
+    _promptController.dispose();
     _metadataController
       ..removeListener(_onMetadataChanged)
       ..dispose();
@@ -222,41 +197,31 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     if (!mounted) {
       return;
     }
-    setState(() {});
+    _cachedResources = null;
+    _cachedResourcesKey = null;
     _shellKey.currentState?.applyFavoriteIds(_metadataController.favoriteIds);
     _shellKey.currentState?.applyRecentEntries(
       _metadataController.recentEntries,
     );
   }
 
-  void _onPromptChanged() {
-    if (mounted) {
-      setState(() {});
+  List<shell.WorkbenchResource> _resourcesForShell() {
+    final favoriteIds = _metadataController.favoriteIds;
+    final key = Object.hash(
+      identityHashCode(widget.openState.resources),
+      Object.hashAllUnordered(favoriteIds),
+    );
+    final cached = _cachedResources;
+    if (cached != null && _cachedResourcesKey == key) {
+      return cached;
     }
-  }
-
-  void _onSkillChanged() {
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  void _onMcpChanged() {
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  void _onLinkChanged() {
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  void _onWorkflowChanged() {
-    if (mounted) {
-      setState(() {});
-    }
+    final mapped = widget.openState.resources.map((record) {
+      final resource = workbenchResourceFromRecord(record);
+      return resource.copyWith(isFavorite: favoriteIds.contains(resource.id));
+    }).toList(growable: false);
+    _cachedResources = mapped;
+    _cachedResourcesKey = key;
+    return mapped;
   }
 
   Future<void> _loadMetadata() async {
@@ -457,11 +422,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   @override
   Widget build(BuildContext context) {
-    final favoriteIds = _metadataController.favoriteIds;
-    final resources = widget.openState.resources.map((record) {
-      final mapped = workbenchResourceFromRecord(record);
-      return mapped.copyWith(isFavorite: favoriteIds.contains(mapped.id));
-    }).toList();
+    final resources = _resourcesForShell();
 
     return VaultDropTarget(
       preferredType: _preferredVaultType,
@@ -503,9 +464,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                   onCreateWorkflow: _createWorkflow,
                   onImportWorkflow: _importWorkflow,
                   onRenamed: _onResourceRenamed,
-                  restorationRepository: WorkspaceRestorationRepository(
-                    vaultRoot: widget.openState.handle.root,
-                  ),
+                  restorationRepository: _restorationRepository,
                 ),
               ),
             ],

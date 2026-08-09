@@ -91,6 +91,8 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   CollectionRecord? _editingCollection;
   bool _creatingCollection = false;
   bool _didRestore = false;
+  bool _refreshScheduled = false;
+  Timer? _persistDebounce;
 
   void applyFavoriteIds(Set<String> favoriteIds) {
     _controller.applyFavoriteIds(favoriteIds);
@@ -159,6 +161,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
 
   @override
   void dispose() {
+    _persistDebounce?.cancel();
     widget.metadataController?.removeListener(_onMetadataChanged);
     _controller
       ..removeListener(_refresh)
@@ -172,7 +175,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   }
 
   void _onTabsChanged() {
-    _persistWorkspace();
+    _schedulePersistWorkspace();
     _refresh();
   }
 
@@ -204,7 +207,26 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     _refresh();
   }
 
-  void _refresh() => setState(() {});
+  void _refresh() {
+    if (_refreshScheduled) {
+      return;
+    }
+    _refreshScheduled = true;
+    scheduleMicrotask(() {
+      _refreshScheduled = false;
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+    });
+  }
+
+  void _schedulePersistWorkspace() {
+    _persistDebounce?.cancel();
+    _persistDebounce = Timer(const Duration(milliseconds: 400), () {
+      unawaited(_persistWorkspace());
+    });
+  }
 
   Future<void> _restoreWorkspace() async {
     final repo = widget.restorationRepository;
@@ -308,26 +330,29 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     if (_isPaletteOpen) {
       setState(() => _isPaletteOpen = false);
     }
-    await widget.metadataController?.recordRecent(resource.id);
+    unawaited(
+      widget.metadataController?.recordRecent(resource.id) ??
+          Future<void>.value(),
+    );
     final relativePath = resource.relativePath;
     if (relativePath == null) {
       return;
     }
     if (resource.type == ResourceType.aiPrompt &&
         widget.promptController != null) {
-      await widget.promptController!.open(relativePath);
+      unawaited(widget.promptController!.open(relativePath));
     } else if (resource.type == ResourceType.skillFolder &&
         widget.skillController != null) {
-      await widget.skillController!.open(relativePath);
+      unawaited(widget.skillController!.open(relativePath));
     } else if (resource.type == ResourceType.mcpConfiguration &&
         widget.mcpController != null) {
-      await widget.mcpController!.open(relativePath);
+      unawaited(widget.mcpController!.open(relativePath));
     } else if (resource.type == ResourceType.websiteLink &&
         widget.linkController != null) {
-      await widget.linkController!.open(relativePath);
+      unawaited(widget.linkController!.open(relativePath));
     } else if (resource.type == ResourceType.workflowFile &&
         widget.workflowController != null) {
-      await widget.workflowController!.open(relativePath);
+      unawaited(widget.workflowController!.open(relativePath));
     }
   }
 
@@ -341,7 +366,10 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     }
     _tabsController.activateTab(resourceId);
     _controller.selectResource(resource);
-    widget.metadataController?.recordRecent(resourceId);
+    final metadata = widget.metadataController;
+    if (metadata != null) {
+      unawaited(metadata.recordRecent(resourceId));
+    }
     final relativePath = resource.relativePath;
     if (relativePath == null) {
       return;
@@ -381,7 +409,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
 
   void _toggleInspector() {
     setState(() => _inspectorVisible = !_inspectorVisible);
-    _persistWorkspace();
+    _schedulePersistWorkspace();
   }
 
   Map<Type, Action<Intent>> get _actions => {

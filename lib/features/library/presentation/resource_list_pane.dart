@@ -84,15 +84,24 @@ class _ResourceListPaneState extends State<ResourceListPane> {
 
     return SizedBox(
       width: 320,
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              widget.controller.labelFor(widget.controller.selectedDestination),
-              style: typography.title2,
+      child: ClipRect(
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            border: Border(
+              right: BorderSide(color: Color(0xFF123127)),
             ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  widget.controller.labelFor(
+                    widget.controller.selectedDestination,
+                  ),
+                  style: typography.title2,
+                ),
             if (widget.onCreatePrompt != null) ...[
               const SizedBox(height: 8),
               _actionButton(
@@ -182,39 +191,25 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                     for (final resource in resources)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: WorkbenchButton(
-                                size: WorkbenchButtonSize.lg,
-                                variant: WorkbenchButtonVariant.outline,
-                                expands: true,
-                                semanticLabel: '选择资源：${resource.title}',
-                                onPressed: () =>
-                                    widget.onResourceSelected(resource),
-                                child: Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${resource.isFavorite ? '★ ' : ''}${resource.title}',
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        resource.subtitle,
-                                        style: typography.caption1,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            if (widget.onDuplicatePrompt != null)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 6),
-                                child: WorkbenchButton(
+                        child: WorkbenchCard(
+                          selected:
+                              widget.controller.selectedResource.id ==
+                              resource.id,
+                          semanticLabel: '选择资源：${resource.title}',
+                          onTap: () => widget.onResourceSelected(resource),
+                          title: Text(
+                            '${resource.isFavorite ? '★ ' : ''}${resource.title}',
+                          ),
+                          description: Text(
+                            resource.relativePath?.isNotEmpty == true
+                                ? resource.relativePath!
+                                : resource.subtitle,
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (widget.onDuplicatePrompt != null)
+                                WorkbenchButton(
                                   size: WorkbenchButtonSize.sm,
                                   variant: WorkbenchButtonVariant.ghost,
                                   semanticLabel: '复制文件：${resource.title}',
@@ -222,11 +217,8 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                                       widget.onDuplicatePrompt!(resource),
                                   child: const Text('复制'),
                                 ),
-                              ),
-                            if (widget.onToggleFavorite != null)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 6),
-                                child: WorkbenchButton(
+                              if (widget.onToggleFavorite != null)
+                                WorkbenchButton(
                                   size: WorkbenchButtonSize.sm,
                                   variant: WorkbenchButtonVariant.ghost,
                                   semanticLabel: resource.isFavorite
@@ -236,16 +228,21 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                                       widget.onToggleFavorite!(resource.id),
                                   child: Text(
                                     resource.isFavorite ? '已收藏' : '收藏',
+                                    style: const TextStyle(
+                                      color: WorkbenchUiTokens.emerald,
+                                    ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                   ],
                 ),
               ),
           ],
+            ),
+          ),
         ),
       ),
     );

@@ -58,6 +58,12 @@ void main() {
       ..add(
         WatchEvent(
           ChangeType.MODIFY,
+          p.join(root.path, '.ai-workbench', 'resources', 'metadata.json'),
+        ),
+      )
+      ..add(
+        WatchEvent(
+          ChangeType.MODIFY,
           p.join(root.path, 'draft.md.nightelf-tmp'),
         ),
       )

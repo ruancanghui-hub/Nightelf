@@ -13,6 +13,8 @@ class WorkbenchIconButton extends StatelessWidget {
     this.semanticLabel,
     this.variant = WorkbenchButtonVariant.ghost,
     this.iconSize,
+    this.width,
+    this.height,
     super.key,
   });
 
@@ -22,6 +24,8 @@ class WorkbenchIconButton extends StatelessWidget {
   final String? semanticLabel;
   final WorkbenchButtonVariant variant;
   final double? iconSize;
+  final double? width;
+  final double? height;
 
   ShadButtonVariant get _shadVariant => switch (variant) {
     WorkbenchButtonVariant.primary => ShadButtonVariant.primary,
@@ -39,6 +43,8 @@ class WorkbenchIconButton extends StatelessWidget {
       variant: _shadVariant,
       icon: icon,
       iconSize: iconSize,
+      width: width,
+      height: height,
       onPressed: onPressed,
       enabled: isEnabled,
     );

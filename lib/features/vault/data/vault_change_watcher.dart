@@ -74,7 +74,9 @@ class VaultChangeWatcher {
     if (parts.contains('.git')) {
       return true;
     }
-    if (normalized == VaultPaths.localRoot ||
+    if (normalized == VaultPaths.metadataRoot ||
+        normalized.startsWith('${VaultPaths.metadataRoot}/') ||
+        normalized == VaultPaths.localRoot ||
         normalized.startsWith('${VaultPaths.localRoot}/')) {
       return true;
     }

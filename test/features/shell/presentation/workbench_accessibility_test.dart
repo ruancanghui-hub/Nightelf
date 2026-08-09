@@ -46,13 +46,7 @@ void main() {
         findsOneWidget,
       );
     }
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is MacosIconButton && widget.semanticLabel == '关闭标签页：发布说明助手',
-      ),
-      findsOneWidget,
-    );
+    expect(find.bySemanticsLabel('关闭标签页：发布说明助手'), findsOneWidget);
 
     await _disposeShell(tester);
   });

@@ -110,9 +110,7 @@ class WorkbenchSidebar extends StatelessWidget {
           size: 48,
         ),
         title: const Text('设置'),
-        message: const Text(
-          '应用偏好与 Vault 本地设置入口即将推出。当前资源仍保存在本机 Vault 中。',
-        ),
+        message: const Text('应用偏好与 Vault 本地设置入口即将推出。当前资源仍保存在本机 Vault 中。'),
         primaryButton: PushButton(
           controlSize: ControlSize.large,
           onPressed: () => Navigator.of(context).pop(),
@@ -233,7 +231,7 @@ class WorkbenchSidebar extends StatelessWidget {
                           const SizedBox(width: 10),
                           const Expanded(
                             child: Text(
-                              'Nightelf · AI 工作台',
+                              '暗夜精灵 · AI 工作台',
                               style: TextStyle(
                                 color: Color(0xFFF2FFF8),
                                 fontSize: 17,
@@ -285,10 +283,10 @@ class WorkbenchSidebar extends StatelessWidget {
                           child: MacosTooltip(
                             message: controller.labelFor(type),
                             child: _flatNavigationButton(
-                              semanticLabel:
-                                  '导航：${controller.labelFor(type)}',
+                              semanticLabel: '导航：${controller.labelFor(type)}',
                               onPressed: () => onDestinationSelected(type),
-                              selected: !overviewSelected &&
+                              selected:
+                                  !overviewSelected &&
                                   type == controller.selectedDestination,
                               compact: compact,
                               visual: compact

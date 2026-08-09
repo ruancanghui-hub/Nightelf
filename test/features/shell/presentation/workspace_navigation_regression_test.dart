@@ -42,10 +42,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
 
     expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is PushButton && widget.semanticLabel == '激活标签页：本地文档 MCP',
-      ),
+      find.bySemanticsLabel('激活标签页：本地文档 MCP'),
       findsOneWidget,
     );
     expect(find.text('资源 ID：mcp-local-docs'), findsOneWidget);
@@ -112,12 +109,7 @@ void main() {
   testWidgets('closing the final tab clears the inspector', (tester) async {
     await pumpShell(tester);
 
-    await tester.tap(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is MacosIconButton && widget.semanticLabel == '关闭标签页：发布说明助手',
-      ),
-    );
+    await tester.tap(find.bySemanticsLabel('关闭标签页：发布说明助手'));
     await tester.pumpAndSettle();
 
     expect(find.text('选择资源以查看详细信息'), findsOneWidget);
@@ -129,10 +121,7 @@ void main() {
     final semantics = tester.ensureSemantics();
     await pumpShell(tester);
 
-    final activeTab = find.byWidgetPredicate(
-      (widget) =>
-          widget is PushButton && widget.semanticLabel == '激活标签页：发布说明助手',
-    );
+    final activeTab = find.bySemanticsLabel('激活标签页：发布说明助手');
 
     try {
       expect(

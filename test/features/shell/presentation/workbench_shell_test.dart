@@ -55,7 +55,7 @@ void main() {
     expect(find.text('查看全部最近打开'), findsNothing);
     expect(find.byKey(const ValueKey('sidebar-settings')), findsOneWidget);
     expect(find.byKey(const ValueKey('sidebar-help')), findsOneWidget);
-    expect(find.text('Nightelf · AI 工作台'), findsOneWidget);
+    expect(find.text('暗夜精灵 · AI 工作台'), findsOneWidget);
     expect(find.text('⌘K'), findsOneWidget);
     expect(find.text('同步'), findsOneWidget);
     expect(find.byType(WorkbenchSearchTrigger), findsOneWidget);

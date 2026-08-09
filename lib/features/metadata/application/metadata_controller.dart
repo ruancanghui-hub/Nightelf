@@ -153,8 +153,23 @@ class MetadataController extends ChangeNotifier {
   }
 
   Future<void> recordRecent(String resourceId) async {
+    final now = DateTime.now().toUtc();
+    final next = <RecentResourceEntry>[
+      RecentResourceEntry(resourceId: resourceId, openedAt: now),
+      ..._snapshot.recentEntries.where(
+        (entry) => entry.resourceId != resourceId,
+      ),
+    ];
+    if (next.length > 50) {
+      next.removeRange(50, next.length);
+    }
+    _snapshot = MetadataSnapshot(
+      resources: _snapshot.resources,
+      collections: _snapshot.collections,
+      recentEntries: next,
+    );
+    notifyListeners();
     await _repository.recordRecent(resourceId);
-    await load();
   }
 
   Future<CollectionRecord> createCollection(String name) async {

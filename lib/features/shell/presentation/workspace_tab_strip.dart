@@ -1,7 +1,7 @@
 import 'package:ai_workbench/features/shell/application/workspace_tabs_controller.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_focus_ring.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
-import 'package:macos_ui/macos_ui.dart';
 
 /// An accessible tab strip for the resources opened in this mock session.
 class WorkspaceTabStrip extends StatelessWidget {
@@ -18,61 +18,40 @@ class WorkspaceTabStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 46,
-      padding: const EdgeInsets.fromLTRB(12, 7, 12, 6),
-      decoration: BoxDecoration(
-        color: MacosTheme.of(context).canvasColor,
-        border: Border(
-          bottom: BorderSide(color: MacosTheme.of(context).dividerColor),
-        ),
-      ),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: controller.tabs.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
-        itemBuilder: (context, index) {
-          final tab = controller.tabs[index];
-          final isActive = tab.resourceId == controller.activeResourceId;
-
-          return Container(
-            decoration: BoxDecoration(
-              color: isActive
-                  ? MacosTheme.of(context).primaryColor.withValues(alpha: 0.14)
-                  : null,
-              borderRadius: BorderRadius.circular(7),
-              border: Border.all(color: MacosTheme.of(context).dividerColor),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Semantics(
-                  selected: isActive,
-                  child: WorkbenchFocusRing(
-                    focusKey: ValueKey('tab-focus-${tab.resourceId}'),
-                    indicatorKey: ValueKey(
-                      'tab-focus-${tab.resourceId}-indicator',
-                    ),
-                    onActivate: () => onTabActivated(tab.resourceId),
-                    borderRadius: BorderRadius.circular(7),
-                    child: PushButton(
-                      controlSize: ControlSize.regular,
-                      semanticLabel: '激活标签页：${tab.title}',
-                      onPressed: () => onTabActivated(tab.resourceId),
-                      child: Text(tab.title),
-                    ),
-                  ),
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        return WorkbenchTabBar(
+          items: [
+            for (final tab in controller.tabs)
+              WorkbenchTabItem(
+                id: tab.resourceId,
+                label: tab.title,
+                selected: tab.resourceId == controller.activeResourceId,
+                onActivate: () => onTabActivated(tab.resourceId),
+                onClose: () => onTabClosed(tab.resourceId),
+                focusKey: ValueKey('tab-focus-${tab.resourceId}'),
+                indicatorKey: ValueKey(
+                  'tab-focus-${tab.resourceId}-indicator',
                 ),
-                MacosIconButton(
-                  icon: const Text('×'),
-                  semanticLabel: '关闭标签页：${tab.title}',
-                  onPressed: () => onTabClosed(tab.resourceId),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+          ],
+          focusRingBuilder: (context, item, child) {
+            final focusKey = item.focusKey;
+            final indicatorKey = item.indicatorKey;
+            if (focusKey == null || indicatorKey == null) {
+              return child;
+            }
+            return WorkbenchFocusRing(
+              focusKey: focusKey,
+              indicatorKey: indicatorKey,
+              onActivate: item.onActivate,
+              borderRadius: BorderRadius.circular(999),
+              child: child,
+            );
+          },
+        );
+      },
     );
   }
 }

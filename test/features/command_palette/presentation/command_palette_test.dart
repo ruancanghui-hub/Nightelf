@@ -31,12 +31,14 @@ void main() {
     expect(find.text('命令面板'), findsOneWidget);
 
     final paletteSearch = find.byWidgetPredicate(
-      (widget) => widget is MacosSearchField && widget.placeholder == '搜索所有资源',
+      (widget) =>
+          widget is WorkbenchInput && widget.placeholder == '搜索所有资源',
     );
     await tester.enterText(paletteSearch, 'Apple');
     await tester.pump();
 
     expect(find.text('Apple 人机界面指南'), findsOneWidget);
+    expect(find.text('设计系统参考链接'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();

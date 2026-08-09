@@ -39,7 +39,7 @@ class AiWorkbenchApp extends ConsumerStatefulWidget {
 
 class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
   late final DirectoryPickerService _directoryPicker;
-  var _pickingDirectory = false;
+  var _vaultBusy = false;
   var _showSplash = true;
 
   @override
@@ -92,11 +92,13 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
       ),
       VaultOpening() => const _StatusScaffold(message: '正在打开 Vault…'),
       VaultFailure(:final message) => _WelcomeScaffold(
+        busy: _vaultBusy,
         errorMessage: message,
         onCreate: () => _createVault(controller),
         onOpen: () => _openVault(controller),
       ),
       VaultClosed() => _WelcomeScaffold(
+        busy: _vaultBusy,
         onCreate: () => _createVault(controller),
         onOpen: () => _openVault(controller),
       ),
@@ -104,28 +106,52 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
   }
 
   Future<void> _createVault(VaultController controller) async {
-    final path = await _pickDirectory(
-      dialogTitle: '选择用于创建 Vault 的文件夹（将直接作为资源库根目录）',
-      allowCreate: true,
-    );
-    if (path == null) {
+    if (_vaultBusy) {
       return;
     }
-    final root = Directory(path);
-    final name = p.basename(root.path);
-    await controller.createVault(root, name.isEmpty ? '我的资源库' : name);
+    setState(() => _vaultBusy = true);
+    try {
+      final path = await _pickDirectory(
+        dialogTitle: '选择用于创建 Vault 的文件夹（将直接作为资源库根目录）',
+        allowCreate: true,
+      );
+      if (path == null) {
+        return;
+      }
+      final root = Directory(path);
+      final name = p.basename(root.path);
+      await controller.createVault(root, name.isEmpty ? '我的资源库' : name);
+    } finally {
+      if (mounted) {
+        setState(() => _vaultBusy = false);
+      } else {
+        _vaultBusy = false;
+      }
+    }
   }
 
   Future<void> _openVault(VaultController controller) async {
-    final path = await _pickDirectory(
-      dialogTitle: '选择要打开的 Vault 文件夹（含 .ai-vault.json 的根目录）',
-      allowCreate: false,
-    );
-    if (path == null) {
+    if (_vaultBusy) {
       return;
     }
-    final root = await _resolveVaultRoot(Directory(path));
-    await controller.openVault(root);
+    setState(() => _vaultBusy = true);
+    try {
+      final path = await _pickDirectory(
+        dialogTitle: '选择要打开的 Vault 文件夹（含 .ai-vault.json 的根目录）',
+        allowCreate: false,
+      );
+      if (path == null) {
+        return;
+      }
+      final root = await _resolveVaultRoot(Directory(path));
+      await controller.openVault(root);
+    } finally {
+      if (mounted) {
+        setState(() => _vaultBusy = false);
+      } else {
+        _vaultBusy = false;
+      }
+    }
   }
 
   /// If the user picked a typed subfolder (e.g. workflows/), open the parent Vault.
@@ -151,25 +177,19 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     required String dialogTitle,
     required bool allowCreate,
   }) async {
-    if (_pickingDirectory) {
+    // Let the button gesture finish before presenting a native panel.
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    if (!mounted) {
       return null;
     }
-    // Avoid setState during the PushButton tap gesture (macos_ui crashes).
-    _pickingDirectory = true;
     try {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      if (!mounted) {
-        return null;
-      }
-      return _directoryPicker.pickDirectory(
+      return await _directoryPicker.pickDirectory(
         dialogTitle: dialogTitle,
         allowCreate: allowCreate,
       );
     } on MissingPluginException {
       // Hot restart can drop native channels; fall back to file_picker.
       return FilePicker.getDirectoryPath(dialogTitle: dialogTitle);
-    } finally {
-      _pickingDirectory = false;
     }
   }
 }
@@ -195,11 +215,13 @@ class _WelcomeScaffold extends StatelessWidget {
   const _WelcomeScaffold({
     required this.onCreate,
     required this.onOpen,
+    this.busy = false,
     this.errorMessage,
   });
 
   final Future<void> Function() onCreate;
   final Future<void> Function() onOpen;
+  final bool busy;
   final String? errorMessage;
 
   @override
@@ -207,85 +229,126 @@ class _WelcomeScaffold extends StatelessWidget {
     return MacosScaffold(
       children: [
         ContentArea(
-          builder: (context, scrollController) => Container(
+          builder: (context, scrollController) => ColoredBox(
             color: const Color(0xFF030B09),
-            alignment: Alignment.center,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 510),
-              child: Container(
-                padding: const EdgeInsets.all(36),
-                decoration: BoxDecoration(
-                  color: const Color(0xE60A1916),
-                  border: Border.all(color: const Color(0xFF1B4D40)),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [
-                    BoxShadow(color: Color(0x405DE7A7), blurRadius: 24),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      'assets/nightelf-logo.png',
-                      key: const ValueKey('nightelf-welcome-logo'),
-                      width: 96,
-                      height: 96,
-                      fit: BoxFit.contain,
-                      semanticLabel: 'Nightelf Logo',
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 32,
+                  ),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight - 64,
+                      maxWidth: 510,
                     ),
-                    const SizedBox(height: 18),
-                    const Text(
-                      '开启你的绿光工作台',
-                      style: TextStyle(
-                        color: Color(0xFFF2FFF8),
-                        fontSize: 27,
-                        fontWeight: FontWeight.w700,
+                    child: Center(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(36, 40, 36, 40),
+                        decoration: BoxDecoration(
+                          color: const Color(0xE60A1916),
+                          border: Border.all(color: const Color(0xFF1B4D40)),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x405DE7A7),
+                              blurRadius: 24,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Image.asset(
+                              'assets/nightelf-logo.png',
+                              key: const ValueKey('nightelf-welcome-logo'),
+                              width: 96,
+                              height: 96,
+                              fit: BoxFit.contain,
+                              semanticLabel: 'Nightelf Logo',
+                            ),
+                            const SizedBox(height: 18),
+                            const Text(
+                              '开启你的绿光工作台',
+                              style: TextStyle(
+                                color: Color(0xFFF2FFF8),
+                                fontSize: 27,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              '把 AI 提示词、SKILL、MCP 配置、网站链接与工作流收进一个可同步的本地 Vault。',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFF9BB4AB),
+                                height: 1.55,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              '打开时请选择含 .ai-vault.json 的 Vault 根目录。',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Color(0xFF6F9184),
+                                fontSize: 12,
+                              ),
+                            ),
+                            if (errorMessage != null) ...[
+                              const SizedBox(height: 16),
+                              Text(
+                                errorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color(0xFFFFA6A6),
+                                ),
+                              ),
+                            ],
+                            if (busy) ...[
+                              const SizedBox(height: 16),
+                              const Text(
+                                '正在选择文件夹…',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Color(0xFF5DE7A7),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 28),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: WorkbenchButton(
+                                size: WorkbenchButtonSize.lg,
+                                expands: true,
+                                enabled: !busy,
+                                onPressed: busy ? null : onCreate,
+                                child: const Text('创建 Vault'),
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: WorkbenchButton(
+                                size: WorkbenchButtonSize.lg,
+                                variant: WorkbenchButtonVariant.outline,
+                                expands: true,
+                                enabled: !busy,
+                                onPressed: busy ? null : onOpen,
+                                child: const Text('打开 Vault'),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      '把 AI 提示词、SKILL、MCP 配置、网站链接与工作流收进一个可同步的本地 Vault。',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Color(0xFF9BB4AB), height: 1.55),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      '打开时请选择含 .ai-vault.json 的 Vault 根目录。',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Color(0xFF6F9184), fontSize: 12),
-                    ),
-                    if (errorMessage != null) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Color(0xFFFFA6A6)),
-                      ),
-                    ],
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      child: WorkbenchButton(
-                        size: WorkbenchButtonSize.lg,
-                        expands: true,
-                        onPressed: onCreate,
-                        child: const Text('创建 Vault'),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: WorkbenchButton(
-                        size: WorkbenchButtonSize.lg,
-                        variant: WorkbenchButtonVariant.outline,
-                        expands: true,
-                        onPressed: onOpen,
-                        child: const Text('打开 Vault'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
           ),
         ),

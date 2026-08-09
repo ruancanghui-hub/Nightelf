@@ -1,8 +1,9 @@
 import 'package:ai_workbench/features/command_palette/application/command_palette_controller.dart';
 import 'package:ai_workbench/features/command_palette/domain/workbench_command.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
-import 'package:macos_ui/macos_ui.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 /// Command palette listing workbench commands and searchable resources.
 class CommandPalette extends StatefulWidget {
@@ -20,6 +21,22 @@ class CommandPalette extends StatefulWidget {
   final ValueChanged<WorkbenchResource> onResourceSelected;
   final VoidCallback onDismissed;
   final CommandPaletteController? controller;
+
+  static const _typeLabels = <ResourceType, String>{
+    ResourceType.aiPrompt: 'AI 提示词',
+    ResourceType.skillFolder: 'SKILL 文件夹',
+    ResourceType.mcpConfiguration: 'MCP 配置',
+    ResourceType.websiteLink: '网站链接',
+    ResourceType.workflowFile: 'Workflow 文件',
+  };
+
+  static IconData _iconForType(ResourceType type) => switch (type) {
+    ResourceType.aiPrompt => LucideIcons.messageCircle,
+    ResourceType.skillFolder => LucideIcons.folder,
+    ResourceType.mcpConfiguration => LucideIcons.slidersHorizontal,
+    ResourceType.websiteLink => LucideIcons.globe,
+    ResourceType.workflowFile => LucideIcons.workflow,
+  };
 
   @override
   State<CommandPalette> createState() => _CommandPaletteState();
@@ -66,6 +83,18 @@ class _CommandPaletteState extends State<CommandPalette> {
     super.dispose();
   }
 
+  IconData _commandIcon(WorkbenchCommand command) {
+    return command.icon ??
+        switch (command.id) {
+          'new-prompt' => LucideIcons.messageCircle,
+          'import-skill' => LucideIcons.folder,
+          'new-mcp' => LucideIcons.slidersHorizontal,
+          'new-link' => LucideIcons.globe,
+          'new-workflow' => LucideIcons.workflow,
+          _ => LucideIcons.terminal,
+        };
+  }
+
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
@@ -73,130 +102,138 @@ class _CommandPaletteState extends State<CommandPalette> {
         label: '命令面板',
         scopesRoute: true,
         explicitChildNodes: true,
-        child: Container(
-          color: const Color(0x66000000),
-          alignment: const Alignment(0, -0.55),
+        child: GestureDetector(
+          onTap: widget.onDismissed,
+          behavior: HitTestBehavior.opaque,
           child: Container(
-            width: 560,
-            constraints: const BoxConstraints(maxHeight: 520),
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: MacosTheme.of(context).canvasColor,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: MacosTheme.of(context).dividerColor),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x55000000),
-                  blurRadius: 30,
-                  offset: Offset(0, 14),
-                ),
-              ],
-            ),
-            child: ListenableBuilder(
-              listenable: _controller,
-              builder: (context, _) {
-                final commands = _controller.visibleCommands;
-                final results = _controller.visibleResources;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          '命令面板',
-                          style: MacosTheme.of(context).typography.title2,
-                        ),
-                        const Spacer(),
-                        MacosIconButton(
-                          icon: const Text('×'),
-                          semanticLabel: '关闭命令面板',
-                          onPressed: widget.onDismissed,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Semantics(
-                      label: '搜索所有资源',
-                      textField: true,
-                      child: MacosSearchField(
-                        autofocus: true,
-                        placeholder: '搜索所有资源',
-                        onChanged: _controller.updateQuery,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Flexible(
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (commands.isNotEmpty) ...[
-                              Text(
-                                '命令',
-                                style: MacosTheme.of(
-                                  context,
-                                ).typography.headline,
-                              ),
-                              const SizedBox(height: 8),
-                              for (final command in commands)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: PushButton(
-                                    controlSize: ControlSize.large,
-                                    semanticLabel: '执行命令：${command.label}',
-                                    onPressed: command.execute == null
-                                        ? null
-                                        : () async {
-                                            await command.execute!();
-                                            widget.onDismissed();
-                                          },
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        command.shortcutLabel == null
-                                            ? command.label
-                                            : '${command.label}  ·  ${command.shortcutLabel}',
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              const SizedBox(height: 12),
-                              Text(
-                                '资源',
-                                style: MacosTheme.of(
-                                  context,
-                                ).typography.headline,
-                              ),
-                              const SizedBox(height: 8),
-                            ],
-                            if (results.isEmpty)
-                              Text(
-                                '未找到匹配资源',
-                                style: MacosTheme.of(context).typography.body,
-                              )
-                            else
-                              for (final resource in results)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 6),
-                                  child: PushButton(
-                                    controlSize: ControlSize.large,
-                                    semanticLabel: '打开资源：${resource.title}',
-                                    onPressed: () =>
-                                        widget.onResourceSelected(resource),
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(resource.title),
-                                    ),
-                                  ),
-                                ),
-                          ],
-                        ),
-                      ),
+            color: const Color(0x66000000),
+            alignment: const Alignment(0, -0.55),
+            child: GestureDetector(
+              onTap: () {},
+              child: Container(
+                width: 560,
+                constraints: const BoxConstraints(maxHeight: 520),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                decoration: BoxDecoration(
+                  color: WorkbenchUiTokens.panel,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: WorkbenchUiTokens.border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x55000000),
+                      blurRadius: 30,
+                      offset: Offset(0, 14),
                     ),
                   ],
-                );
-              },
+                ),
+                child: ListenableBuilder(
+                  listenable: _controller,
+                  builder: (context, _) {
+                    final commands = _controller.visibleCommands;
+                    final results = _controller.visibleResources;
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              '命令面板',
+                              style: TextStyle(
+                                color: WorkbenchUiTokens.foreground,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const Spacer(),
+                            WorkbenchIconButton(
+                              semanticLabel: '关闭命令面板',
+                              tooltip: '关闭',
+                              icon: const Icon(LucideIcons.x, size: 16),
+                              onPressed: widget.onDismissed,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        WorkbenchInput(
+                          autofocus: true,
+                          placeholder: '搜索所有资源',
+                          semanticLabel: '搜索所有资源',
+                          leading: const Icon(
+                            LucideIcons.search,
+                            size: 16,
+                            color: WorkbenchUiTokens.muted,
+                          ),
+                          onChanged: _controller.updateQuery,
+                        ),
+                        const SizedBox(height: 10),
+                        Flexible(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (commands.isNotEmpty) ...[
+                                  const WorkbenchCommandSectionLabel('命令'),
+                                  for (final command in commands)
+                                    WorkbenchCommandTile(
+                                      title: command.label,
+                                      subtitle: command.subtitle,
+                                      leading: Icon(_commandIcon(command)),
+                                      trailing: command.shortcutLabel == null
+                                          ? null
+                                          : Text(command.shortcutLabel!),
+                                      semanticLabel:
+                                          '执行命令：${command.label}',
+                                      enabled: command.isEnabled,
+                                      onTap: command.execute == null
+                                          ? null
+                                          : () async {
+                                              await command.execute!();
+                                              widget.onDismissed();
+                                            },
+                                    ),
+                                  const SizedBox(height: 8),
+                                  const WorkbenchCommandSectionLabel('资源'),
+                                ],
+                                if (results.isEmpty)
+                                  const Padding(
+                                    padding: EdgeInsets.fromLTRB(4, 8, 4, 8),
+                                    child: Text(
+                                      '未找到匹配资源',
+                                      style: TextStyle(
+                                        color: WorkbenchUiTokens.muted,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  for (final resource in results)
+                                    WorkbenchCommandTile(
+                                      title: resource.title,
+                                      subtitle: resource.subtitle,
+                                      leading: Icon(
+                                        CommandPalette._iconForType(
+                                          resource.type,
+                                        ),
+                                      ),
+                                      trailing: Text(
+                                        CommandPalette
+                                            ._typeLabels[resource.type]!,
+                                      ),
+                                      semanticLabel:
+                                          '打开资源：${resource.title}',
+                                      onTap: () =>
+                                          widget.onResourceSelected(resource),
+                                    ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
             ),
           ),
         ),

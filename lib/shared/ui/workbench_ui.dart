@@ -1,6 +1,9 @@
 export 'package:ai_workbench/shared/ui/workbench_button.dart';
+export 'package:ai_workbench/shared/ui/workbench_card.dart';
+export 'package:ai_workbench/shared/ui/workbench_command_tile.dart';
 export 'package:ai_workbench/shared/ui/workbench_field_label.dart';
 export 'package:ai_workbench/shared/ui/workbench_icon_button.dart';
 export 'package:ai_workbench/shared/ui/workbench_input.dart';
 export 'package:ai_workbench/shared/ui/workbench_search_trigger.dart';
 export 'package:ai_workbench/shared/ui/workbench_shad_scope.dart';
+export 'package:ai_workbench/shared/ui/workbench_tab_bar.dart';
