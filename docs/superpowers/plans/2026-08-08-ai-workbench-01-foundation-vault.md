@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Run all commands from the repository root.
-- Create a macOS-only Flutter project named `nightelf` with bundle namespace `com.ruancanghui`.
+- Reuse the existing macOS-only Flutter project named `ai_workbench` with bundle namespace `com.ruancanghui`; do not regenerate or replace the approved UI foundation.
 - Set the minimum macOS deployment target to `13.0`.
 - Keep domain and data services free of widget imports.
 - Use files as the source of truth and keep `.ai-workbench/local/` out of Git.
@@ -20,13 +20,11 @@
 
 ---
 
-### Task 1: Scaffold the macOS app and lock the dependency baseline
+### Task 1: Extend the existing macOS app dependency baseline
 
 **Files:**
-- Create: `pubspec.yaml`
-- Create: `analysis_options.yaml`
-- Create: `lib/main.dart`
-- Create: `lib/app/ai_workbench_app.dart`
+- Modify: `pubspec.yaml`
+- Modify: `pubspec.lock`
 - Create: `test/app_smoke_test.dart`
 - Modify: `macos/Podfile`
 - Modify: `macos/Runner.xcodeproj/project.pbxproj`
@@ -35,11 +33,10 @@
 - Produces: `AiWorkbenchApp extends ConsumerWidget` as the root widget used by all later phases.
 - Produces: the dependency lock in `pubspec.lock`.
 
-- [ ] **Step 1: Generate the macOS project and add Phase 1 dependencies**
+- [ ] **Step 1: Preserve the approved UI scaffold and add Phase 1 dependencies**
 
 ```bash
-flutter create --project-name nightelf --org com.ruancanghui --platforms=macos .
-flutter pub add macos_ui flutter_riverpod path file_picker shared_preferences watcher uuid yaml sqlite3 sqlite3_flutter_libs collection
+flutter pub add path file_picker shared_preferences watcher uuid yaml sqlite3 sqlite3_flutter_libs collection
 flutter pub add --dev mocktail
 ```
 
@@ -49,7 +46,7 @@ flutter pub add --dev mocktail
 // test/app_smoke_test.dart
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightelf/app/ai_workbench_app.dart';
+import 'package:ai_workbench/app/ai_workbench_app.dart';
 
 void main() {
   testWidgets('shows the no-vault welcome state', (tester) async {
@@ -65,12 +62,12 @@ void main() {
 
 Run: `flutter test test/app_smoke_test.dart`
 
-Expected: FAIL because `lib/app/ai_workbench_app.dart` and `AiWorkbenchApp` do not exist.
+Expected: FAIL because the approved UI app does not yet expose a real no-Vault state.
 
 - [ ] **Step 4: Add the minimal macOS app root**
 
 ```dart
-// lib/app/ai_workbench_app.dart
+// lib/app/ai_workbench_app.dart (extend the existing app; do not replace its theme or workbench shell)
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:macos_ui/macos_ui.dart';
@@ -110,7 +107,7 @@ class AiWorkbenchApp extends ConsumerWidget {
 // lib/main.dart
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:nightelf/app/ai_workbench_app.dart';
+import 'package:ai_workbench/app/ai_workbench_app.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -129,8 +126,8 @@ Expected: analyzer exit 0, one passing widget test, and a successful debug app b
 - [ ] **Step 6: Commit the scaffold**
 
 ```bash
-git add pubspec.yaml pubspec.lock analysis_options.yaml lib/main.dart lib/app/ai_workbench_app.dart test/app_smoke_test.dart macos
-git commit -m "chore: scaffold macOS workbench"
+git add pubspec.yaml pubspec.lock test/app_smoke_test.dart macos
+git commit -m "chore: add Vault foundation dependencies"
 ```
 
 ### Task 2: Define Vault and resource domain contracts
@@ -155,9 +152,9 @@ git commit -m "chore: scaffold macOS workbench"
 ```dart
 // test/features/vault/domain/vault_models_test.dart
 import 'package:flutter_test/flutter_test.dart';
-import 'package:nightelf/features/vault/data/vault_paths.dart';
-import 'package:nightelf/features/vault/domain/vault_manifest.dart';
-import 'package:nightelf/shared/domain/resource_type.dart';
+import 'package:ai_workbench/features/vault/data/vault_paths.dart';
+import 'package:ai_workbench/features/vault/domain/vault_manifest.dart';
+import 'package:ai_workbench/shared/domain/resource_type.dart';
 
 void main() {
   test('manifest JSON round-trips version and id', () {
