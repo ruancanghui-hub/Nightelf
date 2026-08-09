@@ -31,6 +31,7 @@ class WorkspaceContent extends StatelessWidget {
     this.skillController,
     this.mcpController,
     this.linkController,
+    this.linkBrowserBuilder,
     this.workflowController,
     this.onRenamed,
     this.allResources = const [],
@@ -48,6 +49,7 @@ class WorkspaceContent extends StatelessWidget {
   final SkillController? skillController;
   final McpController? mcpController;
   final LinkController? linkController;
+  final LinkBrowserBuilder? linkBrowserBuilder;
   final WorkflowController? workflowController;
   final Future<void> Function(String relativePath)? onRenamed;
   final List<WorkbenchResource> allResources;
@@ -70,6 +72,34 @@ class WorkspaceContent extends StatelessWidget {
           child: Text(
             '选择资源以查看详细信息',
             style: MacosTheme.of(context).typography.title3,
+          ),
+        ),
+      );
+    }
+
+    final liveWebsite =
+        resource.type == ResourceType.websiteLink &&
+        vaultRootPath != null &&
+        resource.relativePath != null &&
+        linkController != null;
+    if (liveWebsite) {
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: MacosTheme.of(context).dividerColor),
+          ),
+        ),
+        child: Focus(
+          focusNode: contentFocusNode,
+          child: WebsiteWorkspace(
+            controller: linkController,
+            resource: resource,
+            metadataController: metadataController,
+            onToggleFavorite: onToggleFavorite,
+            browserBuilder: linkBrowserBuilder,
+            onRenamed: onRenamed,
+            showInspector: showInspector,
           ),
         ),
       );
