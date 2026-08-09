@@ -100,6 +100,10 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     _controller.applyRecentResourceIds(recentResourceIds);
   }
 
+  void applyRecentEntries(List<RecentResourceEntry> recentEntries) {
+    _controller.applyRecentEntries(recentEntries);
+  }
+
   Set<String> toggleFavorite(String resourceId) {
     return _controller.toggleFavorite(resourceId);
   }
@@ -125,8 +129,8 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     _tabsController = WorkspaceTabsController()..addListener(_onTabsChanged);
     widget.metadataController?.addListener(_onMetadataChanged);
     if (widget.metadataController != null) {
-      _controller.applyRecentResourceIds(
-        widget.metadataController!.recentResourceIds,
+      _controller.applyRecentEntries(
+        widget.metadataController!.recentEntries,
       );
       _controller.applyFavoriteIds(widget.metadataController!.favoriteIds);
     }
@@ -178,7 +182,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
       return;
     }
     _controller.applyFavoriteIds(metadata.favoriteIds);
-    _controller.applyRecentResourceIds(metadata.recentResourceIds);
+    _controller.applyRecentEntries(metadata.recentEntries);
     final selectedId = _controller.selectedCollectionId;
     if (selectedId != null) {
       CollectionRecord? selected;
@@ -380,17 +384,6 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     _persistWorkspace();
   }
 
-  void _selectCollection(CollectionRecord? collection) {
-    if (collection == null) {
-      _controller.selectCollection(collectionId: null, memberIds: null);
-      return;
-    }
-    _controller.selectCollection(
-      collectionId: collection.id,
-      memberIds: collection.resourceIds.toSet(),
-    );
-  }
-
   Map<Type, Action<Intent>> get _actions => {
     OpenCommandPaletteIntent: CallbackAction<OpenCommandPaletteIntent>(
       onInvoke: (_) {
@@ -454,7 +447,6 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   };
 
   Widget _buildSidebar({
-    required MetadataController? metadata,
     required double width,
     required bool compact,
   }) {
@@ -468,20 +460,6 @@ class WorkbenchShellState extends State<WorkbenchShell> {
       activeResourceId: _tabsController.activeResourceId,
       onDestinationSelected: _selectDestination,
       onResourceSelected: _openResource,
-      collections: metadata?.collections ?? const [],
-      onCollectionSelected: metadata == null ? null : _selectCollection,
-      onCreateCollection: metadata == null
-          ? null
-          : () => setState(() {
-              _creatingCollection = true;
-              _editingCollection = null;
-            }),
-      onEditCollection: metadata == null
-          ? null
-          : (collection) => setState(() {
-              _creatingCollection = false;
-              _editingCollection = collection;
-            }),
     );
   }
 
@@ -551,7 +529,6 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _buildSidebar(
-                            metadata: metadata,
                             width: width.toDouble(),
                             compact: compactSidebar,
                           ),

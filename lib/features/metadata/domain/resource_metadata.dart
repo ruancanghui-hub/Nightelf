@@ -56,17 +56,29 @@ class CollectionRecord {
   }
 }
 
+/// A recently opened resource with optional open timestamp.
+class RecentResourceEntry {
+  const RecentResourceEntry({required this.resourceId, this.openedAt});
+
+  final String resourceId;
+  final DateTime? openedAt;
+}
+
 /// Loaded metadata state for one Vault.
 class MetadataSnapshot {
   const MetadataSnapshot({
     this.resources = const {},
     this.collections = const [],
-    this.recentResourceIds = const [],
+    this.recentEntries = const [],
   });
 
   final Map<String, ResourceMetadata> resources;
   final List<CollectionRecord> collections;
-  final List<String> recentResourceIds;
+  final List<RecentResourceEntry> recentEntries;
+
+  List<String> get recentResourceIds => [
+    for (final entry in recentEntries) entry.resourceId,
+  ];
 
   Set<String> get favoriteIds => {
     for (final entry in resources.entries)

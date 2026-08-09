@@ -40,6 +40,8 @@ class MetadataController extends ChangeNotifier {
 
   List<String> get recentResourceIds => _snapshot.recentResourceIds;
 
+  List<RecentResourceEntry> get recentEntries => _snapshot.recentEntries;
+
   ResourceMetadata metadataFor(String resourceId) {
     return _snapshot.resources[resourceId] ??
         ResourceMetadata(resourceId: resourceId);

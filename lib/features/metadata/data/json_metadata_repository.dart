@@ -41,11 +41,11 @@ class JsonMetadataRepository implements MetadataRepository {
     final favoriteIds = await _loadFavoriteIds();
     final resources = await _loadResources(favoriteIds);
     final collections = await _loadCollections();
-    final recent = await _loadRecentIds();
+    final recent = await _loadRecentEntries();
     return MetadataSnapshot(
       resources: resources,
       collections: collections,
-      recentResourceIds: recent,
+      recentEntries: recent,
     );
   }
 
@@ -104,15 +104,16 @@ class JsonMetadataRepository implements MetadataRepository {
 
   @override
   Future<void> recordRecent(String resourceId) async {
-    final existing = await _loadRecentIds();
-    final next = <String>[
-      resourceId,
-      ...existing.where((id) => id != resourceId),
+    final existing = await _loadRecentEntries();
+    final now = DateTime.now().toUtc();
+    final next = <RecentResourceEntry>[
+      RecentResourceEntry(resourceId: resourceId, openedAt: now),
+      ...existing.where((entry) => entry.resourceId != resourceId),
     ];
     if (next.length > recentLimit) {
       next.removeRange(recentLimit, next.length);
     }
-    await _writeRecentIds(next);
+    await _writeRecentEntries(next);
   }
 
   Future<Set<String>> _loadFavoriteIds() async {
@@ -193,13 +194,42 @@ class JsonMetadataRepository implements MetadataRepository {
     return collections;
   }
 
-  Future<List<String>> _loadRecentIds() async {
+  Future<List<RecentResourceEntry>> _loadRecentEntries() async {
     final decoded = await _readJsonMap(_recentFile);
-    final ids = decoded?['resourceIds'];
+    if (decoded == null) {
+      return const [];
+    }
+
+    final entries = decoded['entries'];
+    if (entries is List) {
+      final result = <RecentResourceEntry>[];
+      for (final item in entries) {
+        if (item is! Map) {
+          continue;
+        }
+        final id = item['resourceId'];
+        if (id is! String || id.isEmpty) {
+          continue;
+        }
+        DateTime? openedAt;
+        final rawOpenedAt = item['openedAt'];
+        if (rawOpenedAt is String && rawOpenedAt.isNotEmpty) {
+          openedAt = DateTime.tryParse(rawOpenedAt)?.toLocal();
+        }
+        result.add(RecentResourceEntry(resourceId: id, openedAt: openedAt));
+      }
+      return result;
+    }
+
+    // Legacy format: { "resourceIds": ["a", "b"] }
+    final ids = decoded['resourceIds'];
     if (ids is! List) {
       return const [];
     }
-    return ids.whereType<String>().toList(growable: false);
+    return [
+      for (final id in ids.whereType<String>())
+        RecentResourceEntry(resourceId: id),
+    ];
   }
 
   Future<void> _writeFavoriteIds(Set<String> ids) async {
@@ -244,9 +274,21 @@ class JsonMetadataRepository implements MetadataRepository {
     });
   }
 
-  Future<void> _writeRecentIds(List<String> ids) async {
+  Future<void> _writeRecentEntries(List<RecentResourceEntry> entries) async {
     await _recentFile.parent.create(recursive: true);
-    await _writeJson(_recentFile, {'version': _version, 'resourceIds': ids});
+    await _writeJson(_recentFile, {
+      'version': _version,
+      'entries': [
+        for (final entry in entries)
+          {
+            'resourceId': entry.resourceId,
+            if (entry.openedAt != null)
+              'openedAt': entry.openedAt!.toUtc().toIso8601String(),
+          },
+      ],
+      // Keep legacy key for older readers.
+      'resourceIds': [for (final entry in entries) entry.resourceId],
+    });
   }
 
   Future<Map<String, Object?>?> _readJsonMap(File file) async {

@@ -116,12 +116,30 @@ void main() {
 
     final snapshot = await repo.load();
     expect(snapshot.recentResourceIds, ['b', 'd', 'c']);
+    expect(snapshot.recentEntries.first.resourceId, 'b');
+    expect(snapshot.recentEntries.first.openedAt, isNotNull);
     expect(
       File(
         p.join(root.path, '.ai-workbench', 'local', 'recent.json'),
       ).existsSync(),
       isTrue,
     );
+  });
+
+  test('legacy recent resourceIds are loaded without timestamps', () async {
+    final root = await Directory.systemTemp.createTemp('nightelf-meta-legacy-');
+    addTearDown(() => root.delete(recursive: true));
+    final recentFile = File(
+      p.join(root.path, '.ai-workbench', 'local', 'recent.json'),
+    );
+    await recentFile.parent.create(recursive: true);
+    await recentFile.writeAsString(
+      '{"version":1,"resourceIds":["legacy-a","legacy-b"]}\n',
+    );
+
+    final snapshot = await JsonMetadataRepository(vaultRoot: root).load();
+    expect(snapshot.recentResourceIds, ['legacy-a', 'legacy-b']);
+    expect(snapshot.recentEntries.every((entry) => entry.openedAt == null), isTrue);
   });
 
   test('tags are trimmed and deduplicated on save', () async {

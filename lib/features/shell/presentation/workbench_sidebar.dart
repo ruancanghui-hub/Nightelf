@@ -1,9 +1,8 @@
-import 'package:ai_workbench/features/metadata/domain/resource_metadata.dart';
-import 'package:ai_workbench/features/metadata/presentation/collection_sidebar_section.dart';
 import 'package:ai_workbench/features/shell/application/workbench_controller.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_focus_ring.dart';
 import 'package:flutter/widgets.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -17,10 +16,6 @@ class WorkbenchSidebar extends StatelessWidget {
     this.onOverviewSelected,
     this.onResourceSelected,
     this.activeResourceId,
-    this.collections = const [],
-    this.onCollectionSelected,
-    this.onCreateCollection,
-    this.onEditCollection,
     this.compact = false,
     this.focusNode,
     super.key,
@@ -33,10 +28,6 @@ class WorkbenchSidebar extends StatelessWidget {
   final VoidCallback? onOverviewSelected;
   final ValueChanged<WorkbenchResource>? onResourceSelected;
   final String? activeResourceId;
-  final List<CollectionRecord> collections;
-  final ValueChanged<CollectionRecord?>? onCollectionSelected;
-  final VoidCallback? onCreateCollection;
-  final ValueChanged<CollectionRecord>? onEditCollection;
   final bool compact;
   final FocusNode? focusNode;
 
@@ -47,6 +38,9 @@ class WorkbenchSidebar extends StatelessWidget {
     ResourceType.websiteLink: LucideIcons.globe,
     ResourceType.workflowFile: LucideIcons.workflow,
   };
+
+  static IconData iconFor(ResourceType type) =>
+      _destinationIcons[type] ?? LucideIcons.file;
 
   /// Keeps a real PushButton in the tree for keyboard/accessibility contracts,
   /// while painting the reference's flat emerald navigation treatment above
@@ -117,9 +111,102 @@ class WorkbenchSidebar extends StatelessWidget {
     );
   }
 
+  Future<void> _showSettingsDialog(BuildContext context) {
+    return showMacosAlertDialog<void>(
+      context: context,
+      builder: (context) => MacosAlertDialog(
+        appIcon: HugeIcon(
+          icon: HugeIcons.strokeRoundedSettings01,
+          color: const Color(0xFF5DE7A7),
+          size: 48,
+        ),
+        title: const Text('设置'),
+        message: const Text(
+          '应用偏好与 Vault 本地设置入口即将推出。当前资源仍保存在本机 Vault 中。',
+        ),
+        primaryButton: PushButton(
+          controlSize: ControlSize.large,
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('知道了'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showHelpDialog(BuildContext context) {
+    return showMacosAlertDialog<void>(
+      context: context,
+      builder: (context) => MacosAlertDialog(
+        appIcon: HugeIcon(
+          icon: HugeIcons.strokeRoundedHelpCircle,
+          color: const Color(0xFF5DE7A7),
+          size: 48,
+        ),
+        title: const Text('帮助'),
+        message: const Text(
+          '暗夜精灵是本地优先的 AI 资源工作台。用左侧栏目管理提示词、SKILL、MCP、网站链接与 Workflow；从「最近打开」可快速回到常用资源。',
+        ),
+        primaryButton: PushButton(
+          controlSize: ControlSize.large,
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('知道了'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showAllRecent(BuildContext context) {
+    final resources = controller.recentResources;
+    return showMacosAlertDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return MacosAlertDialog(
+          appIcon: const Icon(
+            LucideIcons.history,
+            color: Color(0xFF5DE7A7),
+            size: 40,
+          ),
+          title: const Text('全部最近打开'),
+          message: SizedBox(
+            width: 420,
+            height: 280,
+            child: resources.isEmpty
+                ? const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('暂无最近打开'),
+                  )
+                : ListView.builder(
+                    itemCount: resources.length,
+                    itemBuilder: (context, index) {
+                      final resource = resources[index];
+                      return _SidebarRecentTile(
+                        resource: resource,
+                        relativeTime: formatRelativeOpenedAt(
+                          controller.recentOpenedAt(resource.id),
+                        ),
+                        selected: resource.id == activeResourceId,
+                        dense: true,
+                        onTap: () {
+                          Navigator.of(dialogContext).pop();
+                          onResourceSelected?.call(resource);
+                        },
+                      );
+                    },
+                  ),
+          ),
+          primaryButton: PushButton(
+            controlSize: ControlSize.large,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('关闭'),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final typography = MacosTheme.of(context).typography;
+    final recentPreview = controller.recentResources.take(5).toList();
 
     return Focus(
       focusNode: focusNode,
@@ -129,210 +216,285 @@ class WorkbenchSidebar extends StatelessWidget {
           compact ? 8 : 16,
           compact ? 20 : 39,
           compact ? 8 : 16,
-          16,
+          12,
         ),
-        decoration: BoxDecoration(
-          color: const Color(0xFF030B09),
-          border: Border(right: const BorderSide(color: Color(0xFF1B4D40))),
+        decoration: const BoxDecoration(
+          color: Color(0xFF030B09),
+          border: Border(right: BorderSide(color: Color(0xFF1B4D40))),
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (!compact) ...[
-                Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Image.asset(
-                      'assets/nightelf-logo.png',
-                      key: const ValueKey('nightelf-sidebar-logo'),
-                      width: 34,
-                      height: 34,
-                      fit: BoxFit.contain,
-                      semanticLabel: 'Nightelf Logo',
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'Nightelf · AI 工作台',
-                        style: TextStyle(
-                          color: Color(0xFFF2FFF8),
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                    if (!compact) ...[
+                      Row(
+                        children: [
+                          Image.asset(
+                            'assets/nightelf-logo.png',
+                            key: const ValueKey('nightelf-sidebar-logo'),
+                            width: 34,
+                            height: 34,
+                            fit: BoxFit.contain,
+                            semanticLabel: 'Nightelf Logo',
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Nightelf · AI 工作台',
+                              style: TextStyle(
+                                color: Color(0xFFF2FFF8),
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 28),
+                    ],
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: WorkbenchFocusRing(
+                        focusKey: const ValueKey('sidebar-focus-overview'),
+                        indicatorKey: const ValueKey(
+                          'sidebar-focus-overview-indicator',
+                        ),
+                        onActivate: onOverviewSelected ?? () {},
+                        child: MacosTooltip(
+                          message: '概览',
+                          child: _flatNavigationButton(
+                            semanticLabel: '导航：概览',
+                            onPressed: onOverviewSelected,
+                            selected: overviewSelected,
+                            compact: compact,
+                            visual: compact
+                                ? const Icon(LucideIcons.house)
+                                : const Row(
+                                    children: [
+                                      Icon(LucideIcons.house),
+                                      SizedBox(width: 10),
+                                      Text('概览'),
+                                    ],
+                                  ),
+                          ),
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 28),
-              ],
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: WorkbenchFocusRing(
-                  focusKey: const ValueKey('sidebar-focus-overview'),
-                  indicatorKey: const ValueKey(
-                    'sidebar-focus-overview-indicator',
-                  ),
-                  onActivate: onOverviewSelected ?? () {},
-                  child: MacosTooltip(
-                    message: '概览',
-                    child: _flatNavigationButton(
-                      semanticLabel: '导航：概览',
-                      onPressed: onOverviewSelected,
-                      selected: overviewSelected,
-                      compact: compact,
-                      visual: compact
-                          ? const Icon(LucideIcons.house)
-                          : const Row(
-                              children: [
-                                Icon(LucideIcons.house),
-                                SizedBox(width: 10),
-                                Text('概览'),
-                              ],
+                    for (final type in ResourceType.values)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: WorkbenchFocusRing(
+                          focusKey: ValueKey('sidebar-focus-${type.name}'),
+                          indicatorKey: ValueKey(
+                            'sidebar-focus-${type.name}-indicator',
+                          ),
+                          onActivate: () => onDestinationSelected(type),
+                          child: MacosTooltip(
+                            message: controller.labelFor(type),
+                            child: _flatNavigationButton(
+                              semanticLabel:
+                                  '导航：${controller.labelFor(type)}',
+                              onPressed: () => onDestinationSelected(type),
+                              selected: !overviewSelected &&
+                                  type == controller.selectedDestination,
+                              compact: compact,
+                              visual: compact
+                                  ? Icon(iconFor(type))
+                                  : Row(
+                                      children: [
+                                        Icon(iconFor(type)),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            controller.labelFor(type),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                             ),
-                    ),
-                  ),
-                ),
-              ),
-              for (final type in ResourceType.values)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: WorkbenchFocusRing(
-                    focusKey: ValueKey('sidebar-focus-${type.name}'),
-                    indicatorKey: ValueKey(
-                      'sidebar-focus-${type.name}-indicator',
-                    ),
-                    onActivate: () => onDestinationSelected(type),
-                    child: MacosTooltip(
-                      message: controller.labelFor(type),
-                      child: _flatNavigationButton(
-                        semanticLabel: '导航：${controller.labelFor(type)}',
-                        onPressed: () => onDestinationSelected(type),
-                        selected: false,
-                        compact: compact,
-                        visual: compact
-                            ? Icon(_destinationIcons[type])
-                            : Row(
-                                children: [
-                                  Icon(_destinationIcons[type]),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      controller.labelFor(type),
-                                      overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    if (!compact) ...[
+                      const SizedBox(height: 18),
+                      const SizedBox(
+                        height: 1,
+                        child: ColoredBox(color: Color(0xFF123127)),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        '最近打开',
+                        style: TextStyle(
+                          color: Color(0xFF9BB4AB),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (recentPreview.isEmpty)
+                        const Text(
+                          '暂无最近打开',
+                          style: TextStyle(
+                            color: Color(0xFF7F9A90),
+                            fontSize: 12,
+                          ),
+                        )
+                      else
+                        for (final resource in recentPreview)
+                          _SidebarRecentTile(
+                            key: ValueKey('recent-${resource.id}'),
+                            resource: resource,
+                            relativeTime: formatRelativeOpenedAt(
+                              controller.recentOpenedAt(resource.id),
+                            ),
+                            selected: resource.id == activeResourceId,
+                            onTap: onResourceSelected == null
+                                ? null
+                                : () => onResourceSelected!(resource),
+                          ),
+                      if (controller.recentResources.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _showAllRecent(context),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '查看全部最近打开',
+                                    style: TextStyle(
+                                      color: Color(0xFF9BB4AB),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
-                                ],
-                              ),
-                      ),
-                    ),
+                                ),
+                                Icon(
+                                  LucideIcons.chevronRight,
+                                  size: 14,
+                                  color: Color(0xFF9BB4AB),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            if (!compact) ...[
+              const SizedBox(height: 8),
+              const SizedBox(
+                height: 1,
+                child: ColoredBox(color: Color(0xFF123127)),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _SidebarUtilityButton(
+                    key: const ValueKey('sidebar-settings'),
+                    semanticLabel: '设置',
+                    tooltip: '设置',
+                    icon: HugeIcons.strokeRoundedSettings01,
+                    onPressed: () => _showSettingsDialog(context),
                   ),
-                ),
-              if (!compact &&
-                  onCollectionSelected != null &&
-                  onCreateCollection != null &&
-                  onEditCollection != null) ...[
-                const SizedBox(height: 18),
-                CollectionSidebarSection(
-                  collections: collections,
-                  selectedCollectionId: controller.selectedCollectionId,
-                  onCollectionSelected: onCollectionSelected!,
-                  onCreateCollection: onCreateCollection!,
-                  onEditCollection: onEditCollection!,
-                ),
-              ],
-              if (!compact) ...[
-                const SizedBox(height: 18),
-                const SizedBox(
-                  height: 1,
-                  child: ColoredBox(color: Color(0xFF123127)),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  '最近打开',
-                  style: typography.subheadline.copyWith(
-                    color: const Color(0xFF9BB4AB),
+                  const SizedBox(width: 4),
+                  _SidebarUtilityButton(
+                    key: const ValueKey('sidebar-help'),
+                    semanticLabel: '帮助',
+                    tooltip: '帮助',
+                    icon: HugeIcons.strokeRoundedHelpCircle,
+                    onPressed: () => _showHelpDialog(context),
                   ),
-                ),
-                const SizedBox(height: 6),
-                if (controller.favoriteResources.isEmpty)
-                  Text('暂无收藏', style: typography.caption1)
-                else
-                  for (final resource in controller.favoriteResources.take(8))
-                    _SidebarQuickAccessTile(
-                      key: ValueKey('favorite-${resource.id}'),
-                      label: '★ ${resource.title}',
-                      semanticLabel: '收藏：${resource.title}',
-                      selected: resource.id == activeResourceId,
-                      onTap: onResourceSelected == null
-                          ? null
-                          : () => onResourceSelected!(resource),
-                    ),
-                if (controller.recentResources.isEmpty)
-                  Text('暂无最近使用', style: typography.caption1)
-                else
-                  for (final resource in controller.recentResources.take(5))
-                    _SidebarQuickAccessTile(
-                      key: ValueKey('recent-${resource.id}'),
-                      label: resource.title,
-                      semanticLabel: '最近使用：${resource.title}',
-                      selected: resource.id == activeResourceId,
-                      onTap: onResourceSelected == null
-                          ? null
-                          : () => onResourceSelected!(resource),
-                    ),
-              ],
+                ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Clickable quick-access row with hover / pressed / selected feedback.
-class _SidebarQuickAccessTile extends StatefulWidget {
-  const _SidebarQuickAccessTile({
-    required this.label,
-    required this.semanticLabel,
+/// Formats a recent-open timestamp into short Chinese relative text.
+String formatRelativeOpenedAt(DateTime? openedAt, {DateTime? now}) {
+  if (openedAt == null) {
+    return '最近';
+  }
+  final current = now ?? DateTime.now();
+  final local = openedAt.toLocal();
+  final diff = current.difference(local);
+  if (diff.inSeconds < 60) {
+    return '刚刚';
+  }
+  if (diff.inMinutes < 60) {
+    return '${diff.inMinutes} 分钟前';
+  }
+  if (diff.inHours < 24) {
+    return '${diff.inHours} 小时前';
+  }
+  final startOfToday = DateTime(current.year, current.month, current.day);
+  final startOfOpened = DateTime(local.year, local.month, local.day);
+  final dayDiff = startOfToday.difference(startOfOpened).inDays;
+  if (dayDiff == 1) {
+    return '昨天';
+  }
+  if (dayDiff < 7) {
+    return '$dayDiff 天前';
+  }
+  return '${local.month}/${local.day}';
+}
+
+class _SidebarRecentTile extends StatefulWidget {
+  const _SidebarRecentTile({
+    required this.resource,
+    required this.relativeTime,
     required this.selected,
     this.onTap,
+    this.dense = false,
     super.key,
   });
 
-  final String label;
-  final String semanticLabel;
+  final WorkbenchResource resource;
+  final String relativeTime;
   final bool selected;
   final VoidCallback? onTap;
+  final bool dense;
 
   @override
-  State<_SidebarQuickAccessTile> createState() =>
-      _SidebarQuickAccessTileState();
+  State<_SidebarRecentTile> createState() => _SidebarRecentTileState();
 }
 
-class _SidebarQuickAccessTileState extends State<_SidebarQuickAccessTile> {
+class _SidebarRecentTileState extends State<_SidebarRecentTile> {
   var _hovered = false;
   var _pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    final theme = MacosTheme.of(context);
-    final typography = theme.typography;
-    final accent = theme.primaryColor;
+    const accent = Color(0xFF5DE7A7);
     final selected = widget.selected;
-    final highlight = _pressed || selected || _hovered;
     final background = selected
-        ? accent.withValues(alpha: 0.22)
+        ? const Color(0xFF0C2B23)
         : _pressed
         ? accent.withValues(alpha: 0.16)
         : _hovered
         ? accent.withValues(alpha: 0.10)
         : const Color(0x00000000);
     final borderColor = selected || _pressed
-        ? accent.withValues(alpha: 0.55)
+        ? accent.withValues(alpha: selected ? 1 : 0.55)
         : const Color(0x00000000);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: EdgeInsets.only(bottom: widget.dense ? 2 : 4),
       child: MouseRegion(
         cursor: widget.onTap == null
             ? SystemMouseCursors.basic
@@ -353,7 +515,10 @@ class _SidebarQuickAccessTileState extends State<_SidebarQuickAccessTile> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 90),
             curve: Curves.easeOut,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.dense ? 6 : 8,
+              vertical: widget.dense ? 6 : 7,
+            ),
             decoration: BoxDecoration(
               color: background,
               borderRadius: BorderRadius.circular(6),
@@ -362,17 +527,77 @@ class _SidebarQuickAccessTileState extends State<_SidebarQuickAccessTile> {
             child: Semantics(
               button: true,
               selected: selected,
-              label: widget.semanticLabel,
-              child: Text(
-                widget.label,
-                overflow: TextOverflow.ellipsis,
-                style: typography.body.copyWith(
-                  fontWeight: selected || _pressed
-                      ? FontWeight.w600
-                      : FontWeight.w400,
-                  color: highlight ? accent : null,
-                ),
+              label: '最近打开：${widget.resource.title}',
+              child: Row(
+                children: [
+                  Icon(
+                    WorkbenchSidebar.iconFor(widget.resource.type),
+                    size: 15,
+                    color: const Color(0xFF9FC1B4),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      widget.resource.title,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: const Color(0xFFE1F1EA),
+                        fontSize: 13,
+                        fontWeight: selected || _pressed
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    widget.relativeTime,
+                    style: const TextStyle(
+                      color: Color(0xFF7F9A90),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SidebarUtilityButton extends StatelessWidget {
+  const _SidebarUtilityButton({
+    required this.semanticLabel,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    super.key,
+  });
+
+  final String semanticLabel;
+  final String tooltip;
+  final List<List<dynamic>> icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return MacosTooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: semanticLabel,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPressed,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: HugeIcon(
+              icon: icon,
+              color: const Color(0xFF9FC1B4),
+              size: 18,
             ),
           ),
         ),

@@ -1,7 +1,7 @@
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart';
 import 'package:flutter/material.dart' show ThemeMode;
-import 'package:flutter/widgets.dart' show Size;
+import 'package:flutter/widgets.dart' show Size, ValueKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -46,6 +46,10 @@ void main() {
     }
     expect(find.text('概览'), findsOneWidget);
     expect(find.text('最近打开'), findsOneWidget);
+    expect(find.text('暂无最近打开'), findsOneWidget);
+    expect(find.text('查看全部最近打开'), findsNothing);
+    expect(find.byKey(const ValueKey('sidebar-settings')), findsOneWidget);
+    expect(find.byKey(const ValueKey('sidebar-help')), findsOneWidget);
     expect(find.text('Nightelf · AI 工作台'), findsOneWidget);
     expect(find.text('⌘K'), findsOneWidget);
     expect(find.text('同步'), findsOneWidget);

@@ -31,7 +31,7 @@ class _MemoryMetadataRepository implements MetadataRepository {
     snapshot = MetadataSnapshot(
       resources: resources,
       collections: snapshot.collections,
-      recentResourceIds: snapshot.recentResourceIds,
+      recentEntries: snapshot.recentEntries,
     );
   }
 
@@ -56,7 +56,7 @@ class _MemoryMetadataRepository implements MetadataRepository {
     snapshot = MetadataSnapshot(
       resources: snapshot.resources,
       collections: collections,
-      recentResourceIds: snapshot.recentResourceIds,
+      recentEntries: snapshot.recentEntries,
     );
   }
 
@@ -67,15 +67,15 @@ class _MemoryMetadataRepository implements MetadataRepository {
       collections: snapshot.collections
           .where((item) => item.id != collectionId)
           .toList(),
-      recentResourceIds: snapshot.recentResourceIds,
+      recentEntries: snapshot.recentEntries,
     );
   }
 
   @override
   Future<void> recordRecent(String resourceId) async {
-    final next = <String>[
-      resourceId,
-      ...snapshot.recentResourceIds.where((id) => id != resourceId),
+    final next = <RecentResourceEntry>[
+      RecentResourceEntry(resourceId: resourceId, openedAt: DateTime.now()),
+      ...snapshot.recentEntries.where((entry) => entry.resourceId != resourceId),
     ];
     if (next.length > recentLimit) {
       next.removeRange(recentLimit, next.length);
@@ -83,7 +83,7 @@ class _MemoryMetadataRepository implements MetadataRepository {
     snapshot = MetadataSnapshot(
       resources: snapshot.resources,
       collections: snapshot.collections,
-      recentResourceIds: next,
+      recentEntries: next,
     );
   }
 }

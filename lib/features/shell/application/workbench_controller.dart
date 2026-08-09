@@ -1,3 +1,4 @@
+import 'package:ai_workbench/features/metadata/domain/resource_metadata.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:flutter/foundation.dart';
 
@@ -82,7 +83,7 @@ class WorkbenchController extends ChangeNotifier {
   late ResourceType _selectedDestination;
   WorkbenchResource? _selectedResource;
   String? _selectedCollectionId;
-  List<String> _recentResourceIds = const [];
+  List<RecentResourceEntry> _recentEntries = const [];
   Set<String>? _collectionMemberIds;
 
   List<String> get destinationLabels =>
@@ -119,20 +120,26 @@ class WorkbenchController extends ChangeNotifier {
       _resources.where((resource) => resource.isFavorite).toList();
 
   List<WorkbenchResource> get recentResources {
-    if (_recentResourceIds.isEmpty) {
-      return _resources.take(8).toList();
+    if (_recentEntries.isEmpty) {
+      return const [];
     }
     final resolved = <WorkbenchResource>[];
-    for (final id in _recentResourceIds) {
-      final resource = resourceById(id);
+    for (final entry in _recentEntries) {
+      final resource = resourceById(entry.resourceId);
       if (resource != null) {
         resolved.add(resource);
       }
-      if (resolved.length >= 8) {
-        break;
-      }
     }
     return resolved;
+  }
+
+  DateTime? recentOpenedAt(String resourceId) {
+    for (final entry in _recentEntries) {
+      if (entry.resourceId == resourceId) {
+        return entry.openedAt;
+      }
+    }
+    return null;
   }
 
   String labelFor(ResourceType type) => _destinationLabels[type]!;
@@ -172,7 +179,13 @@ class WorkbenchController extends ChangeNotifier {
   }
 
   void applyRecentResourceIds(List<String> recentResourceIds) {
-    _recentResourceIds = List<String>.from(recentResourceIds);
+    applyRecentEntries([
+      for (final id in recentResourceIds) RecentResourceEntry(resourceId: id),
+    ]);
+  }
+
+  void applyRecentEntries(List<RecentResourceEntry> recentEntries) {
+    _recentEntries = List<RecentResourceEntry>.from(recentEntries);
     notifyListeners();
   }
 

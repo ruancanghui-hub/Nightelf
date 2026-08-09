@@ -132,8 +132,8 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       widget.openState.resources,
     )) {
       _shellKey.currentState?.applyFavoriteIds(_metadataController.favoriteIds);
-      _shellKey.currentState?.applyRecentResourceIds(
-        _metadataController.recentResourceIds,
+      _shellKey.currentState?.applyRecentEntries(
+        _metadataController.recentEntries,
       );
     }
   }
@@ -224,8 +224,8 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     }
     setState(() {});
     _shellKey.currentState?.applyFavoriteIds(_metadataController.favoriteIds);
-    _shellKey.currentState?.applyRecentResourceIds(
-      _metadataController.recentResourceIds,
+    _shellKey.currentState?.applyRecentEntries(
+      _metadataController.recentEntries,
     );
   }
 
@@ -265,8 +265,8 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       return;
     }
     _shellKey.currentState?.applyFavoriteIds(_metadataController.favoriteIds);
-    _shellKey.currentState?.applyRecentResourceIds(
-      _metadataController.recentResourceIds,
+    _shellKey.currentState?.applyRecentEntries(
+      _metadataController.recentEntries,
     );
   }
 
