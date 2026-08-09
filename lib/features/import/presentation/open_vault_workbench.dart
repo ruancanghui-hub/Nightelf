@@ -22,6 +22,9 @@ import 'package:ai_workbench/features/skills/application/skill_controller.dart';
 import 'package:ai_workbench/features/skills/data/file_skill_repository.dart';
 import 'package:ai_workbench/features/vault/application/vault_controller.dart';
 import 'package:ai_workbench/features/vault/application/vault_state.dart';
+import 'package:ai_workbench/features/workflows/application/workflow_controller.dart';
+import 'package:ai_workbench/features/workflows/data/file_workflow_repository.dart';
+import 'package:ai_workbench/features/workflows/data/json_workflow_layout_repository.dart';
 import 'package:ai_workbench/shared/domain/resource_type.dart';
 import 'package:ai_workbench/shared/platform/flutter_clipboard_service.dart';
 import 'package:ai_workbench/shared/platform/macos_system_open_service.dart';
@@ -50,6 +53,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   late SkillController _skillController;
   late McpController _mcpController;
   late LinkController _linkController;
+  late WorkflowController _workflowController;
   bool _reviewOpen = false;
   String? _bannerMessage;
   shell.ResourceType? _preferredShellType;
@@ -66,6 +70,9 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     _skillController = _createSkillController(widget.openState.handle.root);
     _mcpController = _createMcpController(widget.openState.handle.root);
     _linkController = _createLinkController(widget.openState.handle.root);
+    _workflowController = _createWorkflowController(
+      widget.openState.handle.root,
+    );
     _importController = ImportController(
       repository: VaultImportRepository(),
       onImported: (paths) => widget.vaultController.refreshPaths(paths),
@@ -75,6 +82,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     _skillController.addListener(_onSkillChanged);
     _mcpController.addListener(_onMcpChanged);
     _linkController.addListener(_onLinkChanged);
+    _workflowController.addListener(_onWorkflowChanged);
     _loadMetadata();
   }
 
@@ -98,6 +106,9 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       _linkController
         ..removeListener(_onLinkChanged)
         ..dispose();
+      _workflowController
+        ..removeListener(_onWorkflowChanged)
+        ..dispose();
       _metadataController = _createMetadataController(
         widget.openState.handle.root,
       )..addListener(_onMetadataChanged);
@@ -109,6 +120,9 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
         ..addListener(_onMcpChanged);
       _linkController = _createLinkController(widget.openState.handle.root)
         ..addListener(_onLinkChanged);
+      _workflowController = _createWorkflowController(
+        widget.openState.handle.root,
+      )..addListener(_onWorkflowChanged);
       _loadMetadata();
     } else if (!identical(
       oldWidget.openState.resources,
@@ -123,6 +137,9 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   @override
   void dispose() {
+    _workflowController
+      ..removeListener(_onWorkflowChanged)
+      ..dispose();
     _linkController
       ..removeListener(_onLinkChanged)
       ..dispose();
@@ -184,6 +201,14 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     );
   }
 
+  WorkflowController _createWorkflowController(Directory root) {
+    return WorkflowController(
+      repository: FileWorkflowRepository(vaultRoot: root),
+      layoutRepository: JsonWorkflowLayoutRepository(root: root),
+      vaultRootPath: root.path,
+    );
+  }
+
   void _onImportChanged() {
     if (mounted) {
       setState(() {});
@@ -220,6 +245,12 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   }
 
   void _onLinkChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _onWorkflowChanged() {
     if (mounted) {
       setState(() {});
     }
@@ -365,6 +396,39 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     }
   }
 
+  Future<void> _createWorkflow() async {
+    try {
+      final created = await _workflowController.create(title: '未命名流程');
+      await _openCreated(created.relativePath, '已新建 Workflow，可编辑源码或切换画布');
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '新建 Workflow 失败：$error');
+    }
+  }
+
+  Future<void> _importWorkflow() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        dialogTitle: '选择 Workflow 文件',
+        type: FileType.custom,
+        allowedExtensions: const ['mmd', 'md', 'yaml', 'yml', 'json'],
+      );
+      final path = result?.files.single.path;
+      if (path == null) {
+        return;
+      }
+      final imported = await _workflowController.importFile(path);
+      await _openCreated(imported.relativePath, '已导入 Workflow：${imported.title}');
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '导入 Workflow 失败：$error');
+    }
+  }
+
   ResourceType? get _preferredVaultType {
     final type = _preferredShellType;
     if (type == null) {
@@ -425,12 +489,15 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                   skillController: _skillController,
                   mcpController: _mcpController,
                   linkController: _linkController,
+                  workflowController: _workflowController,
                   onCreatePrompt: _createPrompt,
                   onDuplicatePrompt: _duplicatePrompt,
                   onImportSkill: _importSkill,
                   onCreateMcp: _createMcp,
                   onCreateLink: _createLink,
                   onPasteLink: _pasteLink,
+                  onCreateWorkflow: _createWorkflow,
+                  onImportWorkflow: _importWorkflow,
                   onPromptRenamed: _onPromptRenamed,
                   restorationRepository: WorkspaceRestorationRepository(
                     vaultRoot: widget.openState.handle.root,

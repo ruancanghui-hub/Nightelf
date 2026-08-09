@@ -20,6 +20,7 @@ import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart'
 import 'package:ai_workbench/features/shell/presentation/workbench_toolbar.dart';
 import 'package:ai_workbench/features/shell/presentation/workspace_tab_strip.dart';
 import 'package:ai_workbench/features/skills/application/skill_controller.dart';
+import 'package:ai_workbench/features/workflows/application/workflow_controller.dart';
 import 'package:ai_workbench/features/workspaces/presentation/workspace_content.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -38,6 +39,7 @@ class WorkbenchShell extends StatefulWidget {
     this.skillController,
     this.mcpController,
     this.linkController,
+    this.workflowController,
     this.restorationRepository,
     this.onCreatePrompt,
     this.onDuplicatePrompt,
@@ -45,6 +47,8 @@ class WorkbenchShell extends StatefulWidget {
     this.onCreateMcp,
     this.onCreateLink,
     this.onPasteLink,
+    this.onCreateWorkflow,
+    this.onImportWorkflow,
     this.onPromptRenamed,
   });
 
@@ -57,6 +61,7 @@ class WorkbenchShell extends StatefulWidget {
   final SkillController? skillController;
   final McpController? mcpController;
   final LinkController? linkController;
+  final WorkflowController? workflowController;
   final WorkspaceRestorationRepository? restorationRepository;
   final Future<void> Function()? onCreatePrompt;
   final Future<void> Function(WorkbenchResource resource)? onDuplicatePrompt;
@@ -64,6 +69,8 @@ class WorkbenchShell extends StatefulWidget {
   final Future<void> Function()? onCreateMcp;
   final Future<void> Function()? onCreateLink;
   final Future<void> Function()? onPasteLink;
+  final Future<void> Function()? onCreateWorkflow;
+  final Future<void> Function()? onImportWorkflow;
   final Future<void> Function(String relativePath)? onPromptRenamed;
 
   @override
@@ -302,6 +309,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     } else if (resource.type == ResourceType.websiteLink &&
         widget.linkController != null) {
       await widget.linkController!.open(relativePath);
+    } else if (resource.type == ResourceType.workflowFile &&
+        widget.workflowController != null) {
+      await widget.workflowController!.open(relativePath);
     }
   }
 
@@ -329,6 +339,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     } else if (resource.type == ResourceType.websiteLink &&
         widget.linkController != null) {
       unawaited(widget.linkController!.open(relativePath));
+    } else if (resource.type == ResourceType.workflowFile &&
+        widget.workflowController != null) {
+      unawaited(widget.workflowController!.open(relativePath));
     }
   }
 
@@ -455,6 +468,11 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                 label: '粘贴网站链接',
                 execute: widget.onPasteLink ?? widget.onCreateLink,
               ),
+              WorkbenchCommand(
+                id: 'new-workflow',
+                label: '新建 Workflow',
+                execute: widget.onCreateWorkflow,
+              ),
             ],
             onResourceSelected: _openResource,
             onDismissed: _closePalette,
@@ -554,6 +572,16 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                 ResourceType.websiteLink
                                             ? widget.onPasteLink
                                             : null,
+                                        onCreateWorkflow:
+                                            _controller.selectedDestination ==
+                                                ResourceType.workflowFile
+                                            ? widget.onCreateWorkflow
+                                            : null,
+                                        onImportWorkflow:
+                                            _controller.selectedDestination ==
+                                                ResourceType.workflowFile
+                                            ? widget.onImportWorkflow
+                                            : null,
                                       ),
                                       Expanded(
                                         child: Column(
@@ -579,6 +607,8 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                     widget.mcpController,
                                                 linkController:
                                                     widget.linkController,
+                                                workflowController:
+                                                    widget.workflowController,
                                                 onPromptRenamed:
                                                     widget.onPromptRenamed,
                                                 allResources:

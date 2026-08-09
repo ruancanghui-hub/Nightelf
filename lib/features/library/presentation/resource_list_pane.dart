@@ -15,6 +15,8 @@ class ResourceListPane extends StatefulWidget {
     this.onCreateMcp,
     this.onCreateLink,
     this.onPasteLink,
+    this.onCreateWorkflow,
+    this.onImportWorkflow,
     super.key,
   });
 
@@ -27,6 +29,8 @@ class ResourceListPane extends StatefulWidget {
   final Future<void> Function()? onCreateMcp;
   final Future<void> Function()? onCreateLink;
   final Future<void> Function()? onPasteLink;
+  final Future<void> Function()? onCreateWorkflow;
+  final Future<void> Function()? onImportWorkflow;
 
   @override
   State<ResourceListPane> createState() => _ResourceListPaneState();
@@ -130,6 +134,31 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                 ),
               ),
             ],
+            if (widget.onCreateWorkflow != null) ...[
+              const SizedBox(height: 8),
+              PushButton(
+                controlSize: ControlSize.large,
+                semanticLabel: '新建 Workflow',
+                onPressed: () => widget.onCreateWorkflow!(),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('新建 Workflow'),
+                ),
+              ),
+            ],
+            if (widget.onImportWorkflow != null) ...[
+              const SizedBox(height: 8),
+              PushButton(
+                controlSize: ControlSize.large,
+                secondary: true,
+                semanticLabel: '导入 Workflow 文件',
+                onPressed: () => widget.onImportWorkflow!(),
+                child: const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('导入 Workflow 文件'),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Semantics(
               label: '搜索当前分类',
@@ -152,6 +181,8 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                     ? '暂无 MCP 配置，点击上方「新建 MCP 配置」开始。'
                     : widget.onPasteLink != null
                     ? '暂无网站链接，先复制网址再点「从剪贴板粘贴链接」。'
+                    : widget.onCreateWorkflow != null
+                    ? '暂无 Workflow，点击上方「新建 Workflow」开始。'
                     : '未找到匹配资源',
                 style: typography.body,
               )

@@ -14,6 +14,7 @@ import 'package:ai_workbench/features/resources/application/resource_workspace_r
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/skills/application/skill_controller.dart';
 import 'package:ai_workbench/features/skills/presentation/skill_workspace.dart';
+import 'package:ai_workbench/features/workflows/application/workflow_controller.dart';
 import 'package:ai_workbench/features/workspaces/presentation/website_workspace.dart';
 import 'package:ai_workbench/features/workspaces/presentation/workflow_workspace.dart';
 import 'package:flutter/widgets.dart';
@@ -30,6 +31,7 @@ class WorkspaceContent extends StatelessWidget {
     this.skillController,
     this.mcpController,
     this.linkController,
+    this.workflowController,
     this.onPromptRenamed,
     this.allResources = const [],
     this.onOpenRelated,
@@ -46,6 +48,7 @@ class WorkspaceContent extends StatelessWidget {
   final SkillController? skillController;
   final McpController? mcpController;
   final LinkController? linkController;
+  final WorkflowController? workflowController;
   final Future<void> Function(String relativePath)? onPromptRenamed;
   final List<WorkbenchResource> allResources;
   final ValueChanged<WorkbenchResource>? onOpenRelated;
@@ -105,6 +108,7 @@ class WorkspaceContent extends StatelessWidget {
                           skillController: skillController,
                           mcpController: mcpController,
                           linkController: linkController,
+                          workflowController: workflowController,
                           onPromptRenamed: onPromptRenamed,
                         )
                       : null;

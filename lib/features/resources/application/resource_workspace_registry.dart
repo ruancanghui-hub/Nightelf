@@ -7,6 +7,8 @@ import 'package:ai_workbench/features/prompts/presentation/prompt_workspace.dart
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/skills/application/skill_controller.dart';
 import 'package:ai_workbench/features/skills/presentation/skill_workspace.dart';
+import 'package:ai_workbench/features/workflows/application/workflow_controller.dart';
+import 'package:ai_workbench/features/workspaces/presentation/workflow_workspace.dart';
 import 'package:flutter/widgets.dart';
 
 /// Builds the live workspace surface for a workbench resource type.
@@ -19,6 +21,7 @@ class ResourceWorkspaceRegistry {
     SkillController? skillController,
     McpController? mcpController,
     LinkController? linkController,
+    WorkflowController? workflowController,
     Future<void> Function(String relativePath)? onPromptRenamed,
   }) {
     return switch (resource.type) {
@@ -35,6 +38,8 @@ class ResourceWorkspaceRegistry {
       ResourceType.websiteLink when linkController != null => LinkWorkspace(
         controller: linkController,
       ),
+      ResourceType.workflowFile when workflowController != null =>
+        WorkflowWorkspace(controller: workflowController),
       _ => null,
     };
   }
