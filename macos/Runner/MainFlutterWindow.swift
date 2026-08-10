@@ -11,6 +11,7 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     FloatingBubblePlugin.register(with: flutterViewController.engine.binaryMessenger)
     DirectoryPickerPlugin.register(with: flutterViewController.engine.binaryMessenger)
+    FolderIconPlugin.register(with: flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }
@@ -237,37 +238,195 @@ final class BubbleClickTarget: NSObject {
   var urls: [String: String] = [:]
 }
 
-/// Application-modal directory picker that stays responsive with macos_ui.
+/// Application-modal directory picker with security-scoped bookmarks.
 enum DirectoryPickerPlugin {
+  private static var accessedURLs: [String: URL] = [:]
+
   static func register(with messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(
       name: "ai_workbench/directory_picker",
       binaryMessenger: messenger
     )
     channel.setMethodCallHandler { call, result in
-      guard call.method == "pickDirectory" else {
+      switch call.method {
+      case "pickDirectory":
+        let args = call.arguments as? [String: Any]
+        DispatchQueue.main.async {
+          pickDirectory(args: args, result: result)
+        }
+      case "resolveBookmark":
+        guard
+          let args = call.arguments as? [String: Any],
+          let bookmarkBase64 = args["bookmarkBase64"] as? String
+        else {
+          result(FlutterError(code: "bad_args", message: "bookmarkBase64 required", details: nil))
+          return
+        }
+        DispatchQueue.main.async {
+          resolveBookmark(bookmarkBase64: bookmarkBase64, result: result)
+        }
+      case "createBookmark":
+        guard
+          let args = call.arguments as? [String: Any],
+          let path = args["path"] as? String
+        else {
+          result(FlutterError(code: "bad_args", message: "path required", details: nil))
+          return
+        }
+        DispatchQueue.main.async {
+          createBookmark(path: path, result: result)
+        }
+      case "stopAccessing":
+        guard
+          let args = call.arguments as? [String: Any],
+          let path = args["path"] as? String
+        else {
+          result(FlutterError(code: "bad_args", message: "path required", details: nil))
+          return
+        }
+        DispatchQueue.main.async {
+          stopAccessing(path: path)
+          result(nil)
+        }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func pickDirectory(args: [String: Any]?, result: @escaping FlutterResult) {
+    let panel = NSOpenPanel()
+    panel.canChooseFiles = false
+    panel.canChooseDirectories = true
+    panel.allowsMultipleSelection = false
+    panel.canCreateDirectories = (args?["allowCreate"] as? Bool) ?? true
+    panel.prompt = "选择"
+    panel.message = (args?["dialogTitle"] as? String) ?? "选择文件夹"
+    if let initial = args?["initialDirectory"] as? String, !initial.isEmpty {
+      panel.directoryURL = URL(fileURLWithPath: initial, isDirectory: true)
+    }
+    // runModal keeps keyboard/mouse focus reliable; sheet modal fights macos_ui.
+    NSApp.activate(ignoringOtherApps: true)
+    let response = panel.runModal()
+    guard response == .OK, let url = panel.url else {
+      result(nil)
+      return
+    }
+    do {
+      let bookmark = try url.bookmarkData(
+        options: [.withSecurityScope],
+        includingResourceValuesForKeys: nil,
+        relativeTo: nil
+      )
+      _ = url.startAccessingSecurityScopedResource()
+      accessedURLs[url.path] = url
+      result([
+        "path": url.path,
+        "bookmarkBase64": bookmark.base64EncodedString(),
+      ])
+    } catch {
+      result(FlutterError(
+        code: "bookmark_failed",
+        message: "无法创建目录访问书签：\(error.localizedDescription)",
+        details: nil
+      ))
+    }
+  }
+
+  private static func resolveBookmark(bookmarkBase64: String, result: @escaping FlutterResult) {
+    guard let data = Data(base64Encoded: bookmarkBase64) else {
+      result(FlutterError(code: "bad_bookmark", message: "书签数据无效", details: nil))
+      return
+    }
+    do {
+      var isStale = false
+      let url = try URL(
+        resolvingBookmarkData: data,
+        options: [.withSecurityScope],
+        relativeTo: nil,
+        bookmarkDataIsStale: &isStale
+      )
+      guard url.startAccessingSecurityScopedResource() else {
+        result(FlutterError(code: "access_denied", message: "无法访问上次选择的目录", details: nil))
+        return
+      }
+      accessedURLs[url.path] = url
+      var payload: [String: Any] = ["path": url.path]
+      if isStale {
+        if let refreshed = try? url.bookmarkData(
+          options: [.withSecurityScope],
+          includingResourceValuesForKeys: nil,
+          relativeTo: nil
+        ) {
+          payload["bookmarkBase64"] = refreshed.base64EncodedString()
+        }
+      }
+      result(payload)
+    } catch {
+      result(FlutterError(
+        code: "resolve_failed",
+        message: "无法解析目录书签：\(error.localizedDescription)",
+        details: nil
+      ))
+    }
+  }
+
+  private static func createBookmark(path: String, result: @escaping FlutterResult) {
+    let url = URL(fileURLWithPath: path, isDirectory: true)
+    do {
+      let bookmark = try url.bookmarkData(
+        options: [.withSecurityScope],
+        includingResourceValuesForKeys: nil,
+        relativeTo: nil
+      )
+      result(bookmark.base64EncodedString())
+    } catch {
+      result(FlutterError(
+        code: "bookmark_failed",
+        message: "无法创建目录访问书签：\(error.localizedDescription)",
+        details: nil
+      ))
+    }
+  }
+
+  private static func stopAccessing(path: String) {
+    if let url = accessedURLs.removeValue(forKey: path) {
+      url.stopAccessingSecurityScopedResource()
+    }
+  }
+}
+
+/// Sets a Nightelf logo as the Finder custom folder icon.
+enum FolderIconPlugin {
+  static func register(with messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(
+      name: "ai_workbench/folder_icon",
+      binaryMessenger: messenger
+    )
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "setFolderIcon" else {
         result(FlutterMethodNotImplemented)
         return
       }
-      let args = call.arguments as? [String: Any]
+      guard
+        let args = call.arguments as? [String: Any],
+        let path = args["path"] as? String,
+        !path.isEmpty
+      else {
+        result(FlutterError(code: "bad_args", message: "path required", details: nil))
+        return
+      }
       DispatchQueue.main.async {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.canCreateDirectories = (args?["allowCreate"] as? Bool) ?? true
-        panel.prompt = "选择"
-        panel.message = (args?["dialogTitle"] as? String) ?? "选择文件夹"
-        if let initial = args?["initialDirectory"] as? String, !initial.isEmpty {
-          panel.directoryURL = URL(fileURLWithPath: initial, isDirectory: true)
+        guard let image = NSImage(named: "NightelfLogo") else {
+          result(FlutterError(code: "missing_icon", message: "NightelfLogo asset missing", details: nil))
+          return
         }
-        // runModal keeps keyboard/mouse focus reliable; sheet modal fights macos_ui.
-        NSApp.activate(ignoringOtherApps: true)
-        let response = panel.runModal()
-        if response == .OK, let url = panel.url {
-          result(url.path)
-        } else {
+        let ok = NSWorkspace.shared.setIcon(image, forFile: path, options: [])
+        if ok {
+          NSWorkspace.shared.noteFileSystemChanged(path)
           result(nil)
+        } else {
+          result(FlutterError(code: "set_icon_failed", message: "无法设置文件夹图标", details: nil))
         }
       }
     }

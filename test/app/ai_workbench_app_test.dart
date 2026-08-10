@@ -172,20 +172,31 @@ void main() {
 }
 
 class _HangingDirectoryPicker implements DirectoryPickerService {
-  final Completer<String?> _completer = Completer<String?>();
+  final Completer<PickedDirectory?> _completer = Completer<PickedDirectory?>();
 
   void complete(String? path) {
     if (!_completer.isCompleted) {
-      _completer.complete(path);
+      _completer.complete(
+        path == null ? null : PickedDirectory(path: path),
+      );
     }
   }
 
   @override
-  Future<String?> pickDirectory({
+  Future<PickedDirectory?> pickDirectory({
     String? dialogTitle,
     String? initialDirectory,
     bool allowCreate = true,
   }) {
     return _completer.future;
   }
+
+  @override
+  Future<PickedDirectory?> resolveBookmark(String bookmarkBase64) async => null;
+
+  @override
+  Future<String?> createBookmark(String path) async => null;
+
+  @override
+  Future<void> stopAccessing(String path) async {}
 }

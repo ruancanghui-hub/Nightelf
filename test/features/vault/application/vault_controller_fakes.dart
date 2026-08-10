@@ -85,9 +85,10 @@ class RecordingSearchIndex implements SearchIndex {
 }
 
 class MemoryAppSettings implements AppSettingsRepository {
-  MemoryAppSettings({this.lastVaultPath});
+  MemoryAppSettings({this.lastVaultPath, this.lastVaultBookmark});
 
   String? lastVaultPath;
+  String? lastVaultBookmark;
   int writeCount = 0;
 
   @override
@@ -97,6 +98,30 @@ class MemoryAppSettings implements AppSettingsRepository {
   Future<void> writeLastVaultPath(String? path) async {
     writeCount += 1;
     lastVaultPath = path;
+    if (path == null || path.isEmpty) {
+      lastVaultBookmark = null;
+    }
+  }
+
+  @override
+  Future<String?> readLastVaultBookmark() async => lastVaultBookmark;
+
+  @override
+  Future<void> writeLastVaultBookmark(String? bookmarkBase64) async {
+    writeCount += 1;
+    lastVaultBookmark = bookmarkBase64;
+  }
+
+  @override
+  Future<void> writeLastVault({String? path, String? bookmarkBase64}) async {
+    writeCount += 1;
+    if (path == null || path.isEmpty) {
+      lastVaultPath = null;
+      lastVaultBookmark = null;
+      return;
+    }
+    lastVaultPath = path;
+    lastVaultBookmark = bookmarkBase64;
   }
 }
 

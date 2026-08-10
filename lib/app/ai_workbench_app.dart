@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui' show PointerDeviceKind;
 
@@ -42,6 +43,7 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
   late final DirectoryPickerService _directoryPicker;
   var _vaultBusy = false;
   var _showSplash = true;
+  var _restorePending = false;
 
   @override
   void initState() {
@@ -49,9 +51,22 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     _directoryPicker =
         widget.directoryPicker ?? defaultDirectoryPickerService();
     if (!widget.hasVault && !widget.skipRestore) {
+      _restorePending = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        ref.read(vaultControllerProvider).restoreLastVault();
+        unawaited(_restoreLastVault());
       });
+    }
+  }
+
+  Future<void> _restoreLastVault() async {
+    try {
+      await ref.read(vaultControllerProvider).restoreLastVault();
+    } finally {
+      if (mounted) {
+        setState(() => _restorePending = false);
+      } else {
+        _restorePending = false;
+      }
     }
   }
 
@@ -78,8 +93,13 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
             ? const WorkbenchShell()
             : ListenableBuilder(
                 listenable: controller,
-                builder: (context, _) =>
-                    _homeForState(controller, controller.state),
+                builder: (context, _) {
+                  final state = controller.state;
+                  if (_restorePending && state is VaultClosed) {
+                    return const _StatusScaffold(message: '正在打开 Vault…');
+                  }
+                  return _homeForState(controller, state);
+                },
               ),
       ),
     );
@@ -117,16 +137,20 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     }
     setState(() => _vaultBusy = true);
     try {
-      final path = await _pickDirectory(
+      final picked = await _pickDirectory(
         dialogTitle: '选择用于创建 Vault 的文件夹（将直接作为资源库根目录）',
         allowCreate: true,
       );
-      if (path == null) {
+      if (picked == null) {
         return;
       }
-      final root = Directory(path);
+      final root = Directory(picked.path);
       final name = p.basename(root.path);
-      await controller.createVault(root, name.isEmpty ? '我的资源库' : name);
+      await controller.createVault(
+        root,
+        name.isEmpty ? '我的资源库' : name,
+        bookmarkBase64: picked.bookmarkBase64,
+      );
     } finally {
       if (mounted) {
         setState(() => _vaultBusy = false);
@@ -147,15 +171,24 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     }
     setState(() => _vaultBusy = true);
     try {
-      final path = await _pickDirectory(
+      final picked = await _pickDirectory(
         dialogTitle: '选择要打开的 Vault 文件夹（含 .ai-vault.json 的根目录）',
         allowCreate: false,
       );
-      if (path == null) {
+      if (picked == null) {
         return;
       }
-      final root = await _resolveVaultRoot(Directory(path));
-      await controller.openVault(root);
+      final root = await _resolveVaultRoot(Directory(picked.path));
+      var bookmark = picked.bookmarkBase64;
+      if (root.path != picked.path) {
+        try {
+          bookmark =
+              await _directoryPicker.createBookmark(root.path) ?? bookmark;
+        } catch (_) {
+          // Keep the picked bookmark if parent bookmark creation fails.
+        }
+      }
+      await controller.openVault(root, bookmarkBase64: bookmark);
     } finally {
       if (mounted) {
         setState(() => _vaultBusy = false);
@@ -184,7 +217,7 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     return selected;
   }
 
-  Future<String?> _pickDirectory({
+  Future<PickedDirectory?> _pickDirectory({
     required String dialogTitle,
     required bool allowCreate,
   }) async {
@@ -198,7 +231,11 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
       );
     } on MissingPluginException {
       // Hot restart can drop native channels; fall back to file_picker.
-      return FilePicker.getDirectoryPath(dialogTitle: dialogTitle);
+      final path = await FilePicker.getDirectoryPath(dialogTitle: dialogTitle);
+      if (path == null || path.trim().isEmpty) {
+        return null;
+      }
+      return PickedDirectory(path: path);
     }
   }
 }

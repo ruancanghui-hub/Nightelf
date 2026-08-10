@@ -383,7 +383,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
         return;
       }
       final imported = await _skillController.importDirectory(
-        Directory(selected),
+        Directory(selected.path),
       );
       await _openCreated(
         imported.relativeDirectory,
