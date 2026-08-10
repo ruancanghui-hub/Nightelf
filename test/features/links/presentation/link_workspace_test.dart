@@ -153,6 +153,9 @@ void main() {
       find.byKey(const ValueKey('link-title-field')),
     );
     expect(titleField.onSubmitted, isNotNull);
+    expect(titleField.onEditingComplete, isNotNull);
+    expect(find.byKey(const ValueKey('link-header-title-field')), findsOneWidget);
+    expect(find.bySemanticsLabel('保存标题'), findsWidgets);
     await tester.runAsync(() async {
       titleField.onSubmitted!.call('Flutter Shadcn UI');
       final deadline = DateTime.now().add(const Duration(seconds: 1));
@@ -164,6 +167,30 @@ void main() {
     await tester.pump();
 
     expect(controller.document?.title, 'Flutter Shadcn UI');
+  });
+
+  testWidgets('header title field saves a custom link title', (tester) async {
+    await pumpWorkspace(tester);
+
+    final headerField = tester.widget<WorkbenchInput>(
+      find.byKey(const ValueKey('link-header-title-field')),
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('link-header-title-field')),
+      '我的自定义标题',
+    );
+    await tester.pump();
+    await tester.runAsync(() async {
+      headerField.onSubmitted!.call('我的自定义标题');
+      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      while (controller.document?.title != '我的自定义标题' &&
+          DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+      }
+    });
+    await tester.pump();
+
+    expect(controller.document?.title, '我的自定义标题');
   });
 
   testWidgets('desktop floating bubble toggle wires controller', (tester) async {

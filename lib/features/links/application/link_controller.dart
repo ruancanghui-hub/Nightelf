@@ -140,16 +140,20 @@ class LinkController extends ChangeNotifier {
     if (trimmed.isEmpty) {
       throw ArgumentError('标题不能为空');
     }
+    if (trimmed == document.title) {
+      return document;
+    }
+    // Prefer the draft URL when valid; otherwise keep the saved URI so a
+    // temporary address typo cannot block a title-only rename.
+    var uri = document.uri;
     final validated = _validation.validate(draftUrl);
-    if (!validated.isValid) {
-      _errorMessage = validated.error;
-      notifyListeners();
-      throw StateError(validated.error!);
+    if (validated.isValid && validated.uri != null) {
+      uri = validated.uri!;
     }
     final renamed = await _repository.rename(
       document.relativePath,
       title: trimmed,
-      uri: validated.uri,
+      uri: uri,
       notes: draftNotes,
       floatingBubble: document.floatingBubble,
     );

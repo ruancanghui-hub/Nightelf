@@ -110,6 +110,7 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
       VaultOpen() => OpenVaultWorkbench(
         vaultController: controller,
         openState: state,
+        onSwitchVault: () => _openVault(controller),
       ),
       VaultOpening() => const _StatusScaffold(message: '正在打开 Vault…'),
       VaultFailure(:final message) => _WelcomeScaffold(
