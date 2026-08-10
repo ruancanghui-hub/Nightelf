@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // Binary / .app folder name (ASCII). Dock/Finder title uses CFBundleDisplayName.
-PRODUCT_NAME = ai_workbench
+PRODUCT_NAME = Nightelf
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = com.ruancanghui.nightelf
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 暗夜精灵. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 Nightelf. All rights reserved.

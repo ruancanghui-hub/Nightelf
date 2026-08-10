@@ -3,7 +3,7 @@ description: 暗夜精灵-AI定制工作台（macOS 本地优先 AI 资源工作
 publish_to: none
 
 environment:
-  sdk: ^3.12.2
+  sdk: ^3.12.0
 
 dependencies:
   collection: ^1.19.1

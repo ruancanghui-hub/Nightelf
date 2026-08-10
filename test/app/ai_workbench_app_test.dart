@@ -22,9 +22,9 @@ void main() {
 
     expect(
       tester.widget<MacosApp>(find.byType(MacosApp)).title,
-      'Nightelf · AI 工作台',
+      'Nightelf 工作台',
     );
-    expect(find.text('暗夜精灵 · AI 工作台'), findsOneWidget);
+    expect(find.text('Nightelf 工作台'), findsOneWidget);
   });
 
   testWidgets('uses the dark workbench theme by default', (tester) async {
@@ -50,7 +50,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 900));
     await tester.pumpAndSettle();
 
-    expect(find.text('开启你的暗夜精灵工作台'), findsOneWidget);
+    expect(find.text('开启你的 Nightelf 工作台'), findsOneWidget);
     final logo = tester.widget<Image>(
       find.byKey(const ValueKey('nightelf-welcome-logo')),
     );
@@ -160,7 +160,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 900));
     await tester.pumpAndSettle();
 
-    expect(find.text('暗夜精灵 · AI 工作台'), findsOneWidget);
+    expect(find.text('Nightelf 工作台'), findsOneWidget);
   });
 
   test('provides distinct dark and light macOS theme tokens', () {

@@ -27,7 +27,7 @@ void main() {
       find.byType(WorkbenchSidebar),
     );
     expect(sidebar.width, closeTo(340, 8));
-    expect(find.text('暗夜精灵 · AI 工作台'), findsOneWidget);
+    expect(find.text('Nightelf 工作台'), findsOneWidget);
     final logo = tester.widget<Image>(
       find.byKey(const ValueKey('nightelf-sidebar-logo')),
     );

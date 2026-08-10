@@ -74,4 +74,22 @@ void main() {
     expect(controller.isFloatingBubble, isFalse);
     expect(bubbles.hidden, contains(renamed.id));
   });
+
+  test('native bubble dismiss persists floatingBubble false', () async {
+    await controller.create(
+      title: '示例',
+      url: 'https://example.com',
+    );
+    await controller.setFloatingBubble(true);
+    expect(controller.isFloatingBubble, isTrue);
+
+    bubbles.simulateDismiss(controller.document!.id);
+    final deadline = DateTime.now().add(const Duration(seconds: 1));
+    while (controller.isFloatingBubble && DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+
+    expect(controller.isFloatingBubble, isFalse);
+    expect(bubbles.dismissed, contains(controller.document!.id));
+  });
 }

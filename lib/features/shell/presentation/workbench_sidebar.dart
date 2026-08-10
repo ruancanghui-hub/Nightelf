@@ -131,7 +131,7 @@ class WorkbenchSidebar extends StatelessWidget {
         ),
         title: const Text('帮助'),
         message: const Text(
-          '暗夜精灵是本地优先的 AI 资源工作台。用左侧栏目管理提示词、SKILL、MCP、网站链接与 Workflow；从「最近打开」可快速回到常用资源。',
+          'Nightelf 工作台是本地优先的 AI 资源工作台。用左侧栏目管理提示词、SKILL、MCP、网站链接与 Workflow；从「最近打开」可快速回到常用资源。',
         ),
         primaryButton: PushButton(
           controlSize: ControlSize.large,
@@ -231,7 +231,7 @@ class WorkbenchSidebar extends StatelessWidget {
                           const SizedBox(width: 10),
                           const Expanded(
                             child: Text(
-                              '暗夜精灵 · AI 工作台',
+                              'Nightelf 工作台',
                               style: TextStyle(
                                 color: Color(0xFFF2FFF8),
                                 fontSize: 17,

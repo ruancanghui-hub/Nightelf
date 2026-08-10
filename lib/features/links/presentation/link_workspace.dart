@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ai_workbench/features/links/application/link_controller.dart';
 import 'package:ai_workbench/features/links/presentation/link_in_app_browser.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
@@ -534,6 +536,19 @@ class _LinkDetailsInspectorState extends State<_LinkDetailsInspector> {
               label: '收藏',
               value: _isFavorite ? '已开启' : '未收藏',
               onTap: widget.resource == null ? null : _toggleFavorite,
+            ),
+            _InspectorActionRow(
+              key: const ValueKey('link-floating-bubble-button'),
+              icon: LucideIcons.circle,
+              label: '桌面悬浮球',
+              value: widget.controller.isFloatingBubble ? '已开启' : '未开启',
+              onTap: () {
+                unawaited(
+                  widget.controller.setFloatingBubble(
+                    !widget.controller.isFloatingBubble,
+                  ),
+                );
+              },
             ),
             const _InspectorActionRow(
               icon: LucideIcons.clock3,

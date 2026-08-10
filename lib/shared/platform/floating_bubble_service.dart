@@ -1,8 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+typedef FloatingBubbleDismissHandler = void Function(String id);
+
 /// Shows always-on-top desktop floating bubbles for quick external URL open.
 abstract interface class FloatingBubbleService {
+  set onDismissed(FloatingBubbleDismissHandler? handler);
+
   Future<void> show({
     required String id,
     required String title,
@@ -17,9 +21,31 @@ abstract interface class FloatingBubbleService {
 class MethodChannelFloatingBubbleService implements FloatingBubbleService {
   MethodChannelFloatingBubbleService({
     MethodChannel? channel,
-  }) : _channel = channel ?? const MethodChannel('ai_workbench/floating_bubble');
+  }) : _channel = channel ?? const MethodChannel('ai_workbench/floating_bubble') {
+    _channel.setMethodCallHandler(_handleMethodCall);
+  }
 
   final MethodChannel _channel;
+  FloatingBubbleDismissHandler? _onDismissed;
+
+  @override
+  set onDismissed(FloatingBubbleDismissHandler? handler) {
+    _onDismissed = handler;
+  }
+
+  Future<void> _handleMethodCall(MethodCall call) async {
+    if (call.method != 'dismissed') {
+      return;
+    }
+    final args = call.arguments;
+    if (args is! Map) {
+      return;
+    }
+    final id = args['id'];
+    if (id is String && id.isNotEmpty) {
+      _onDismissed?.call(id);
+    }
+  }
 
   @override
   Future<void> show({
@@ -47,6 +73,9 @@ class MethodChannelFloatingBubbleService implements FloatingBubbleService {
 
 class NoopFloatingBubbleService implements FloatingBubbleService {
   @override
+  set onDismissed(FloatingBubbleDismissHandler? handler) {}
+
+  @override
   Future<void> show({
     required String id,
     required String title,
@@ -63,7 +92,20 @@ class NoopFloatingBubbleService implements FloatingBubbleService {
 class RecordingFloatingBubbleService implements FloatingBubbleService {
   final List<({String id, String title, String url})> shown = [];
   final List<String> hidden = [];
+  final List<String> dismissed = [];
   var hideAllCount = 0;
+  FloatingBubbleDismissHandler? _onDismissed;
+
+  @override
+  set onDismissed(FloatingBubbleDismissHandler? handler) {
+    _onDismissed = handler;
+  }
+
+  void simulateDismiss(String id) {
+    dismissed.add(id);
+    shown.removeWhere((item) => item.id == id);
+    _onDismissed?.call(id);
+  }
 
   @override
   Future<void> show({

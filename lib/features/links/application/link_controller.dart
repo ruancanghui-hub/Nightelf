@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:ai_workbench/features/links/data/link_repository.dart';
@@ -22,7 +23,9 @@ class LinkController extends ChangeNotifier {
        _systemOpen = systemOpen,
        _vaultRootPath = vaultRootPath,
        _floatingBubbles = floatingBubbles ?? defaultFloatingBubbleService(),
-       _validation = validation ?? const LinkValidation();
+       _validation = validation ?? const LinkValidation() {
+    _floatingBubbles.onDismissed = _handleBubbleDismissed;
+  }
 
   final LinkRepository _repository;
   final ClipboardService _clipboard;
@@ -285,6 +288,37 @@ class LinkController extends ChangeNotifier {
     );
   }
 
+  void _handleBubbleDismissed(String id) {
+    unawaited(_persistBubbleDismissed(id));
+  }
+
+  Future<void> _persistBubbleDismissed(String id) async {
+    try {
+      if (_document?.id == id) {
+        if (!(_document?.floatingBubble ?? false)) {
+          return;
+        }
+        final updated = await _repository.save(
+          _document!.copyWith(floatingBubble: false),
+        );
+        _document = updated;
+        _statusMessage = '已关闭桌面悬浮球';
+        notifyListeners();
+        return;
+      }
+
+      final documents = await _repository.listAll();
+      for (final document in documents) {
+        if (document.id == id && document.floatingBubble) {
+          await _repository.save(document.copyWith(floatingBubble: false));
+          break;
+        }
+      }
+    } catch (_) {
+      // Native dismiss already hid the panel; persistence is best-effort.
+    }
+  }
+
   LinkDocument _requireDocument() {
     final document = _document;
     if (document == null) {
@@ -295,6 +329,7 @@ class LinkController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _floatingBubbles.onDismissed = null;
     // Bubbles stay until explicitly closed or app exits.
     super.dispose();
   }

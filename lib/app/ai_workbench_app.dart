@@ -60,7 +60,7 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     final controller = ref.watch(vaultControllerProvider);
 
     return MacosApp(
-      title: 'Nightelf · AI 工作台',
+      title: 'Nightelf 工作台',
       debugShowCheckedModeBanner: false,
       themeMode: widget.themeMode,
       theme: WorkbenchTheme.light(),
@@ -288,7 +288,7 @@ class _WelcomeScaffold extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 18),
                                 const Text(
-                                  '开启你的暗夜精灵工作台',
+                                  '开启你的 Nightelf 工作台',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     color: Color(0xFFF2FFF8),

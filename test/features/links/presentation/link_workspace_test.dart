@@ -5,6 +5,7 @@ import 'package:ai_workbench/features/links/data/file_link_repository.dart';
 import 'package:ai_workbench/features/links/presentation/link_workspace.dart';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/shared/io/atomic_file_writer.dart';
+import 'package:ai_workbench/shared/platform/floating_bubble_service.dart';
 import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +17,7 @@ void main() {
   late Directory root;
   late RecordingClipboardService clipboard;
   late RecordingSystemOpenService systemOpen;
+  late RecordingFloatingBubbleService bubbles;
   late LinkController controller;
   late WorkbenchResource resource;
 
@@ -23,6 +25,7 @@ void main() {
     root = await Directory.systemTemp.createTemp('nightelf-link-workspace-');
     clipboard = RecordingClipboardService();
     systemOpen = RecordingSystemOpenService();
+    bubbles = RecordingFloatingBubbleService();
     controller = LinkController(
       repository: FileLinkRepository(
         vaultRoot: root,
@@ -31,6 +34,7 @@ void main() {
       ),
       clipboard: clipboard,
       systemOpen: systemOpen,
+      floatingBubbles: bubbles,
       vaultRootPath: root.path,
     );
     final document = await controller.create(
@@ -104,6 +108,8 @@ void main() {
     expect(find.text('Flutter Shadcn UI 组件文档'), findsOneWidget);
     expect(find.text('收藏'), findsOneWidget);
     expect(find.text('未收藏'), findsOneWidget);
+    expect(find.text('桌面悬浮球'), findsOneWidget);
+    expect(find.text('未开启'), findsOneWidget);
     expect(find.text('最后访问'), findsOneWidget);
     expect(find.text('刚刚'), findsOneWidget);
 
@@ -158,6 +164,38 @@ void main() {
     await tester.pump();
 
     expect(controller.document?.title, 'Flutter Shadcn UI');
+  });
+
+  testWidgets('desktop floating bubble toggle wires controller', (tester) async {
+    await pumpWorkspace(tester);
+
+    expect(find.byKey(const ValueKey('link-floating-bubble-button')), findsOneWidget);
+    expect(find.text('桌面悬浮球'), findsOneWidget);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('link-floating-bubble-button')));
+      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      while (!controller.isFloatingBubble && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    });
+    await tester.pump();
+
+    expect(controller.isFloatingBubble, isTrue);
+    expect(bubbles.shown.single.id, 'link-id');
+    expect(find.text('已开启'), findsWidgets);
+
+    await tester.runAsync(() async {
+      await tester.tap(find.byKey(const ValueKey('link-floating-bubble-button')));
+      final deadline = DateTime.now().add(const Duration(seconds: 2));
+      while (controller.isFloatingBubble && DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    });
+    await tester.pump();
+
+    expect(controller.isFloatingBubble, isFalse);
+    expect(bubbles.hidden, contains('link-id'));
   });
 
   testWidgets('compact link workspace stacks without losing core content', (

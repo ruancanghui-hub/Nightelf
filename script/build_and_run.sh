@@ -2,10 +2,10 @@
 set -euo pipefail
 
 MODE="${1:-run}"
-APP_NAME="ai_workbench"
+APP_NAME="Nightelf"
 BUNDLE_ID="com.ruancanghui.nightelf"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_BUNDLE="$ROOT_DIR/build/macos/Build/Products/Debug/ai_workbench.app"
+APP_BUNDLE="$ROOT_DIR/build/macos/Build/Products/Debug/Nightelf.app"
 APP_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 case "$MODE" in
