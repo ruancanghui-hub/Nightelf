@@ -2,6 +2,7 @@ import 'package:ai_workbench/features/shell/application/workbench_controller.dar
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 /// Searchable resources for the currently selected library category.
@@ -201,52 +202,65 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                           onTap: () => widget.onResourceSelected(resource),
                           title: Text(
                             '${resource.isFavorite ? '★ ' : ''}${resource.title}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           description: Text(
                             resource.relativePath?.isNotEmpty == true
                                 ? resource.relativePath!
                                 : resource.subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (widget.onDuplicatePrompt != null)
-                                WorkbenchButton(
-                                  size: WorkbenchButtonSize.sm,
+                                WorkbenchIconButton(
+                                  width: 28,
+                                  height: 28,
+                                  iconSize: 15,
                                   variant: WorkbenchButtonVariant.ghost,
+                                  tooltip: '复制文件',
                                   semanticLabel: '复制文件：${resource.title}',
                                   onPressed: () =>
                                       widget.onDuplicatePrompt!(resource),
-                                  child: const Text('复制'),
+                                  icon: const Icon(LucideIcons.copy),
                                 ),
                               if (widget.onToggleFavorite != null)
-                                WorkbenchButton(
-                                  size: WorkbenchButtonSize.sm,
+                                WorkbenchIconButton(
+                                  width: 28,
+                                  height: 28,
+                                  iconSize: 15,
                                   variant: WorkbenchButtonVariant.ghost,
+                                  tooltip: resource.isFavorite
+                                      ? '取消收藏'
+                                      : '收藏',
                                   semanticLabel: resource.isFavorite
                                       ? '取消收藏：${resource.title}'
                                       : '收藏：${resource.title}',
                                   onPressed: () =>
                                       widget.onToggleFavorite!(resource.id),
-                                  child: Text(
-                                    resource.isFavorite ? '已收藏' : '收藏',
-                                    style: const TextStyle(
-                                      color: WorkbenchUiTokens.emerald,
-                                    ),
+                                  icon: Icon(
+                                    resource.isFavorite
+                                        ? LucideIcons.star
+                                        : LucideIcons.starOff,
+                                    color: WorkbenchUiTokens.emerald,
                                   ),
                                 ),
                               if (widget.onDeleteResource != null)
-                                WorkbenchButton(
-                                  size: WorkbenchButtonSize.sm,
+                                WorkbenchIconButton(
+                                  width: 28,
+                                  height: 28,
+                                  iconSize: 15,
                                   variant: WorkbenchButtonVariant.ghost,
+                                  tooltip: '删除',
                                   semanticLabel: '删除资源：${resource.title}',
                                   onPressed: () =>
                                       widget.onDeleteResource!(resource),
-                                  child: const Text(
-                                    '删除',
-                                    style: TextStyle(
-                                      color: Color(0xFFE35D6A),
-                                    ),
+                                  icon: const Icon(
+                                    LucideIcons.trash2,
+                                    color: Color(0xFFE35D6A),
                                   ),
                                 ),
                             ],

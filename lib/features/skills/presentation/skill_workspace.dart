@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:ai_workbench/features/editor/presentation/text_editor_workspace.dart';
 import 'package:ai_workbench/features/skills/application/skill_controller.dart';
 import 'package:ai_workbench/features/skills/presentation/skill_file_tree.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 import 'package:path/path.dart' as p;
 
@@ -76,43 +78,60 @@ class _SkillActionsBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 6,
+        runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          PushButton(
-            controlSize: ControlSize.small,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.primary,
+            tooltip: '在 Finder 中显示',
             semanticLabel: '在 Finder 中显示',
             onPressed: () => controller.revealInFinder(),
-            child: const Text('Finder'),
+            icon: const Icon(LucideIcons.folderOpen),
           ),
-          PushButton(
-            controlSize: ControlSize.small,
-            secondary: true,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.outline,
+            tooltip: '在终端打开',
             semanticLabel: '在终端打开',
             onPressed: () => controller.openTerminal(),
-            child: const Text('终端'),
+            icon: const Icon(LucideIcons.terminal),
           ),
-          PushButton(
-            controlSize: ControlSize.small,
-            secondary: true,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.outline,
+            tooltip: '创建副本',
             semanticLabel: '创建副本',
             onPressed: () => controller.duplicate(),
-            child: const Text('创建副本'),
+            icon: const Icon(LucideIcons.copyPlus),
           ),
-          PushButton(
-            controlSize: ControlSize.small,
-            secondary: true,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.destructive,
+            tooltip: '移到回收站',
             semanticLabel: '移到回收站',
             onPressed: () => controller.moveToTrash(),
-            child: const Text('移到回收站'),
+            icon: const Icon(LucideIcons.trash2),
           ),
           if (controller.lastTrashPath != null)
-            PushButton(
-              controlSize: ControlSize.small,
+            WorkbenchIconButton(
+              width: 34,
+              height: 34,
+              iconSize: 16,
+              variant: WorkbenchButtonVariant.outline,
+              tooltip: '撤销回收',
               semanticLabel: '撤销回收',
               onPressed: () => controller.undoTrash(),
-              child: const Text('撤销回收'),
+              icon: const Icon(LucideIcons.undo2),
             ),
           if (controller.statusMessage != null)
             Text(controller.statusMessage!, style: typography.caption1),

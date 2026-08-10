@@ -1,7 +1,9 @@
 import 'package:ai_workbench/features/editor/application/document_session.dart';
 import 'package:ai_workbench/features/editor/domain/document_descriptor.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 import 'package:re_editor/re_editor.dart';
 
@@ -138,13 +140,17 @@ class _TextEditorWorkspaceState extends State<TextEditorWorkspace> {
                       child: const SizedBox.shrink(),
                     ),
                     const SizedBox(width: 12),
-                    PushButton(
-                      controlSize: ControlSize.small,
+                    WorkbenchIconButton(
+                      width: 34,
+                      height: 34,
+                      iconSize: 16,
+                      variant: WorkbenchButtonVariant.primary,
+                      tooltip: '保存',
                       semanticLabel: '保存文档',
                       onPressed: readOnly || !widget.session.state.isDirty
                           ? null
                           : () => widget.session.saveNow(),
-                      child: const Text('保存'),
+                      icon: const Icon(LucideIcons.save),
                     ),
                   ],
                 ),
@@ -155,15 +161,16 @@ class _TextEditorWorkspaceState extends State<TextEditorWorkspace> {
                   child: Row(
                     children: [
                       const Expanded(child: Text('磁盘上的文件已变化，请选择保留哪一版。')),
-                      PushButton(
-                        controlSize: ControlSize.small,
+                      WorkbenchButton(
+                        size: WorkbenchButtonSize.sm,
+                        variant: WorkbenchButtonVariant.primary,
                         onPressed: () => widget.session.keepLocalVersion(),
                         child: const Text('保留编辑器'),
                       ),
                       const SizedBox(width: 8),
-                      PushButton(
-                        controlSize: ControlSize.small,
-                        secondary: true,
+                      WorkbenchButton(
+                        size: WorkbenchButtonSize.sm,
+                        variant: WorkbenchButtonVariant.outline,
                         onPressed: () => widget.session.keepDiskVersion(),
                         child: const Text('加载磁盘版'),
                       ),

@@ -1,6 +1,8 @@
 import 'package:ai_workbench/features/workflows/application/workflow_controller.dart';
 import 'package:ai_workbench/features/workflows/presentation/workflow_canvas.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 class WorkflowWorkspace extends StatelessWidget {
@@ -128,54 +130,67 @@ class _WorkflowEditorState extends State<_WorkflowEditor> {
           Row(
             children: [
               Expanded(
-                child: Semantics(
-                  label: 'Workflow 标题',
-                  textField: true,
-                  child: MacosTextField(
-                    controller: _titleController,
-                    placeholder: '输入标题',
-                    onSubmitted: (_) => _saveTitle(),
-                  ),
+                child: WorkbenchInput(
+                  controller: _titleController,
+                  placeholder: '输入标题',
+                  semanticLabel: 'Workflow 标题',
+                  onSubmitted: (_) => _saveTitle(),
                 ),
               ),
               const SizedBox(width: 8),
-              PushButton(
-                controlSize: ControlSize.small,
+              WorkbenchIconButton(
+                width: 34,
+                height: 34,
+                iconSize: 16,
+                variant: WorkbenchButtonVariant.primary,
+                tooltip: '保存标题',
                 semanticLabel: '保存标题',
                 onPressed: _saveTitle,
-                child: const Text('保存标题'),
+                icon: const Icon(LucideIcons.check),
               ),
             ],
           ),
           const SizedBox(height: 10),
           Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              PushButton(
-                controlSize: ControlSize.small,
+              WorkbenchIconButton(
+                width: 34,
+                height: 34,
+                iconSize: 16,
+                variant: controller.mode == WorkflowViewMode.source
+                    ? WorkbenchButtonVariant.primary
+                    : WorkbenchButtonVariant.outline,
+                tooltip: '源码模式',
                 semanticLabel: '源码模式',
                 onPressed: () => controller.setMode(WorkflowViewMode.source),
-                child: Text(
-                  controller.mode == WorkflowViewMode.source ? '源码 ✓' : '源码',
-                ),
+                icon: const Icon(LucideIcons.codeXml),
               ),
-              PushButton(
-                controlSize: ControlSize.small,
+              WorkbenchIconButton(
+                width: 34,
+                height: 34,
+                iconSize: 16,
+                variant: controller.mode == WorkflowViewMode.canvas
+                    ? WorkbenchButtonVariant.primary
+                    : WorkbenchButtonVariant.outline,
+                tooltip: '画布模式',
                 semanticLabel: '画布模式',
                 onPressed: controller.canUseCanvas
                     ? () => controller.setMode(WorkflowViewMode.canvas)
                     : null,
-                child: Text(
-                  controller.mode == WorkflowViewMode.canvas ? '画布 ✓' : '画布',
-                ),
+                icon: const Icon(LucideIcons.layoutDashboard),
               ),
-              PushButton(
-                controlSize: ControlSize.small,
+              WorkbenchIconButton(
+                width: 34,
+                height: 34,
+                iconSize: 16,
+                variant: WorkbenchButtonVariant.primary,
+                tooltip: '保存',
                 semanticLabel: '保存 Workflow',
                 onPressed: () => controller.saveSource(),
-                child: const Text('保存'),
+                icon: const Icon(LucideIcons.save),
               ),
               if (controller.statusMessage != null)
                 Text(controller.statusMessage!, style: typography.caption1),
@@ -197,12 +212,16 @@ class _WorkflowEditorState extends State<_WorkflowEditor> {
                       style: typography.caption1,
                     ),
                   ),
-                  PushButton(
-                    controlSize: ControlSize.small,
+                  WorkbenchIconButton(
+                    width: 34,
+                    height: 34,
+                    iconSize: 16,
+                    variant: WorkbenchButtonVariant.outline,
+                    tooltip: '返回源码',
                     semanticLabel: '返回源码',
                     onPressed: () =>
                         controller.setMode(WorkflowViewMode.source),
-                    child: const Text('返回源码'),
+                    icon: const Icon(LucideIcons.codeXml),
                   ),
                 ],
               ),

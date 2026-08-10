@@ -1,7 +1,9 @@
 import 'package:ai_workbench/features/editor/presentation/text_editor_workspace.dart';
 import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
 import 'package:ai_workbench/features/mcp/domain/json_diagnostic.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 class McpWorkspace extends StatelessWidget {
@@ -98,22 +100,23 @@ class _McpTitleBarState extends State<_McpTitleBar> {
       child: Row(
         children: [
           Expanded(
-            child: Semantics(
-              label: 'MCP 标题',
-              textField: true,
-              child: MacosTextField(
-                controller: _titleController,
-                placeholder: '输入标题',
-                onSubmitted: (_) => _saveTitle(),
-              ),
+            child: WorkbenchInput(
+              controller: _titleController,
+              placeholder: '输入标题',
+              semanticLabel: 'MCP 标题',
+              onSubmitted: (_) => _saveTitle(),
             ),
           ),
           const SizedBox(width: 8),
-          PushButton(
-            controlSize: ControlSize.small,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.primary,
+            tooltip: '保存标题',
             semanticLabel: '保存标题',
             onPressed: widget.controller.document == null ? null : _saveTitle,
-            child: const Text('保存标题'),
+            icon: const Icon(LucideIcons.check),
           ),
         ],
       ),
@@ -132,60 +135,83 @@ class _McpActionsBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 6,
+        runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          PushButton(
-            controlSize: ControlSize.small,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.primary,
+            tooltip: '格式化',
             semanticLabel: '格式化',
             onPressed: () => controller.format(),
-            child: const Text('格式化'),
+            icon: const Icon(LucideIcons.alignLeft),
           ),
-          PushButton(
-            controlSize: ControlSize.small,
-            secondary: true,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.outline,
+            tooltip: '复制安全模板',
             semanticLabel: '复制安全模板',
             onPressed: () => controller.copySafeTemplate(),
-            child: const Text('复制安全模板'),
+            icon: const Icon(LucideIcons.shield),
           ),
           MacosTooltip(
             message: '完整配置复制需 Phase 5 SecretStore',
-            child: PushButton(
-              controlSize: ControlSize.small,
-              secondary: true,
+            child: WorkbenchIconButton(
+              width: 34,
+              height: 34,
+              iconSize: 16,
+              variant: WorkbenchButtonVariant.outline,
+              tooltip: '复制完整配置',
               semanticLabel: '复制完整配置',
               onPressed: null,
-              child: const Text('复制完整配置'),
+              icon: const Icon(LucideIcons.copy),
             ),
           ),
-          PushButton(
-            controlSize: ControlSize.small,
-            secondary: true,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.outline,
+            tooltip: '在终端打开',
             semanticLabel: '在终端打开',
             onPressed: () => controller.openTerminal(),
-            child: const Text('在终端打开'),
+            icon: const Icon(LucideIcons.terminal),
           ),
-          PushButton(
-            controlSize: ControlSize.small,
-            secondary: true,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.outline,
+            tooltip: '创建副本',
             semanticLabel: '创建副本',
             onPressed: () => controller.duplicate(),
-            child: const Text('创建副本'),
+            icon: const Icon(LucideIcons.copyPlus),
           ),
-          PushButton(
-            controlSize: ControlSize.small,
-            secondary: true,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.destructive,
+            tooltip: '移到回收站',
             semanticLabel: '移到回收站',
             onPressed: () => controller.moveToTrash(),
-            child: const Text('移到回收站'),
+            icon: const Icon(LucideIcons.trash2),
           ),
           if (controller.lastTrashPath != null)
-            PushButton(
-              controlSize: ControlSize.small,
+            WorkbenchIconButton(
+              width: 34,
+              height: 34,
+              iconSize: 16,
+              variant: WorkbenchButtonVariant.outline,
+              tooltip: '撤销回收',
               semanticLabel: '撤销回收',
               onPressed: () => controller.undoTrash(),
-              child: const Text('撤销回收'),
+              icon: const Icon(LucideIcons.undo2),
             ),
           if (controller.statusMessage != null)
             Text(controller.statusMessage!, style: typography.caption1),

@@ -59,8 +59,8 @@ void main() {
       ),
     );
 
-    expect(find.text('收藏'), findsWidgets);
-    expect(find.text('删除'), findsWidgets);
+    expect(find.bySemanticsLabel('收藏：UX 评审'), findsOneWidget);
+    expect(find.bySemanticsLabel('删除资源：UX 评审'), findsOneWidget);
 
     await tester.tap(find.bySemanticsLabel('删除资源：UX 评审'));
     await tester.pump();
@@ -86,6 +86,6 @@ void main() {
       ),
     );
 
-    expect(find.text('删除'), findsNothing);
+    expect(find.bySemanticsLabel(RegExp(r'^删除资源：')), findsNothing);
   });
 }

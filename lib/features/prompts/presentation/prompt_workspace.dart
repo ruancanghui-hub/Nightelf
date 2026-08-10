@@ -1,6 +1,8 @@
 import 'package:ai_workbench/features/editor/presentation/text_editor_workspace.dart';
 import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 /// Prompt workspace with copy/duplicate/trash actions over a live editor.
@@ -105,22 +107,23 @@ class _PromptTitleBarState extends State<_PromptTitleBar> {
       child: Row(
         children: [
           Expanded(
-            child: Semantics(
-              label: '提示词标题',
-              textField: true,
-              child: MacosTextField(
-                controller: _titleController,
-                placeholder: '输入标题',
-                onSubmitted: (_) => _saveTitle(),
-              ),
+            child: WorkbenchInput(
+              controller: _titleController,
+              placeholder: '输入标题',
+              semanticLabel: '提示词标题',
+              onSubmitted: (_) => _saveTitle(),
             ),
           ),
           const SizedBox(width: 8),
-          PushButton(
-            controlSize: ControlSize.small,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.primary,
+            tooltip: '保存标题',
             semanticLabel: '保存标题',
             onPressed: widget.controller.document == null ? null : _saveTitle,
-            child: const Text('保存标题'),
+            icon: const Icon(LucideIcons.check),
           ),
         ],
       ),
@@ -136,54 +139,64 @@ class _PromptActionsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final typography = MacosTheme.of(context).typography;
+    final hasDocument = controller.document != null;
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 12),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 6,
+        runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          PushButton(
-            controlSize: ControlSize.small,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.primary,
+            tooltip: '复制纯文本',
             semanticLabel: '复制纯文本',
-            onPressed: controller.document == null
-                ? null
-                : () => controller.copyPlainText(),
-            child: const Text('复制纯文本'),
+            onPressed: hasDocument ? () => controller.copyPlainText() : null,
+            icon: const Icon(LucideIcons.copy),
           ),
-          PushButton(
-            controlSize: ControlSize.small,
-            secondary: true,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.outline,
+            tooltip: '复制 Markdown',
             semanticLabel: '复制 Markdown',
-            onPressed: controller.document == null
-                ? null
-                : () => controller.copyMarkdown(),
-            child: const Text('复制 Markdown'),
+            onPressed: hasDocument ? () => controller.copyMarkdown() : null,
+            icon: const Icon(LucideIcons.fileCode),
           ),
-          PushButton(
-            controlSize: ControlSize.small,
-            secondary: true,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.outline,
+            tooltip: '创建副本',
             semanticLabel: '创建副本',
-            onPressed: controller.document == null
-                ? null
-                : () => controller.duplicate(),
-            child: const Text('创建副本'),
+            onPressed: hasDocument ? () => controller.duplicate() : null,
+            icon: const Icon(LucideIcons.copyPlus),
           ),
-          PushButton(
-            controlSize: ControlSize.small,
-            secondary: true,
+          WorkbenchIconButton(
+            width: 34,
+            height: 34,
+            iconSize: 16,
+            variant: WorkbenchButtonVariant.destructive,
+            tooltip: '移到回收站',
             semanticLabel: '移到回收站',
-            onPressed: controller.document == null
-                ? null
-                : () => controller.moveToTrash(),
-            child: const Text('移到回收站'),
+            onPressed: hasDocument ? () => controller.moveToTrash() : null,
+            icon: const Icon(LucideIcons.trash2),
           ),
           if (controller.lastTrashPath != null)
-            PushButton(
-              controlSize: ControlSize.small,
+            WorkbenchIconButton(
+              width: 34,
+              height: 34,
+              iconSize: 16,
+              variant: WorkbenchButtonVariant.outline,
+              tooltip: '撤销回收',
               semanticLabel: '撤销回收',
               onPressed: () => controller.undoTrash(),
-              child: const Text('撤销回收'),
+              icon: const Icon(LucideIcons.undo2),
             ),
           if (controller.statusMessage != null)
             Text(controller.statusMessage!, style: typography.caption1),
