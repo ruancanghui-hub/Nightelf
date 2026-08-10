@@ -54,4 +54,63 @@ void main() {
     expect(controller.selectedDestination, ResourceType.mcpConfiguration);
     expect(controller.selectedResources, isEmpty);
   });
+
+  test('replaceResources keeps destination when selected resource is removed', () {
+    final controller = WorkbenchController(
+      resources: const [
+        WorkbenchResource(
+          id: 'prompt-1',
+          type: ResourceType.aiPrompt,
+          title: '提示词 A',
+          subtitle: '',
+          isFavorite: false,
+        ),
+        WorkbenchResource(
+          id: 'prompt-2',
+          type: ResourceType.aiPrompt,
+          title: '提示词 B',
+          subtitle: '',
+          isFavorite: false,
+        ),
+        WorkbenchResource(
+          id: 'mcp-1',
+          type: ResourceType.mcpConfiguration,
+          title: 'MCP',
+          subtitle: '',
+          isFavorite: false,
+        ),
+      ],
+    );
+
+    controller.selectResource(
+      const WorkbenchResource(
+        id: 'prompt-1',
+        type: ResourceType.aiPrompt,
+        title: '提示词 A',
+        subtitle: '',
+        isFavorite: false,
+      ),
+    );
+    expect(controller.selectedDestination, ResourceType.aiPrompt);
+
+    controller.replaceResources(const [
+      WorkbenchResource(
+        id: 'prompt-2',
+        type: ResourceType.aiPrompt,
+        title: '提示词 B',
+        subtitle: '',
+        isFavorite: false,
+      ),
+      WorkbenchResource(
+        id: 'mcp-1',
+        type: ResourceType.mcpConfiguration,
+        title: 'MCP',
+        subtitle: '',
+        isFavorite: false,
+      ),
+    ]);
+
+    expect(controller.selectedDestination, ResourceType.aiPrompt);
+    expect(controller.selectedResource.id, 'prompt-2');
+  });
 }

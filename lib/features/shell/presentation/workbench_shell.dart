@@ -123,11 +123,14 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   }
 
   /// Closes a tab if it is open (e.g. after the resource was deleted).
+  ///
+  /// Does not sync [WorkbenchController] selection/destination to the newly
+  /// active tab — deletion already updated selection via [replaceResources].
   void closeResourceTab(String resourceId) {
     if (!_tabsController.tabs.any((tab) => tab.resourceId == resourceId)) {
       return;
     }
-    _closeTab(resourceId);
+    _closeTab(resourceId, syncSelection: false);
   }
 
   @override
@@ -402,8 +405,11 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     }
   }
 
-  void _closeTab(String resourceId) {
+  void _closeTab(String resourceId, {bool syncSelection = true}) {
     _tabsController.closeTab(resourceId);
+    if (!syncSelection) {
+      return;
+    }
     final activeId = _tabsController.activeResourceId;
     final resource = activeId == null
         ? null
