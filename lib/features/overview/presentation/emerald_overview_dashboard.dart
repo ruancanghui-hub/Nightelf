@@ -1,5 +1,6 @@
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/shell/presentation/emerald_interactive_surface.dart';
+import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
@@ -13,6 +14,7 @@ class EmeraldOverviewDashboard extends StatelessWidget {
     required this.labelFor,
     required this.onTypeSelected,
     required this.onResourceSelected,
+    this.onSwitchVault,
     super.key,
   });
 
@@ -21,6 +23,7 @@ class EmeraldOverviewDashboard extends StatelessWidget {
   final String Function(ResourceType type) labelFor;
   final ValueChanged<ResourceType> onTypeSelected;
   final ValueChanged<WorkbenchResource> onResourceSelected;
+  final VoidCallback? onSwitchVault;
 
   static const _canvas = Color(0xFF030B09);
   static const _panel = Color(0xE60A1916);
@@ -300,6 +303,17 @@ class EmeraldOverviewDashboard extends StatelessWidget {
               ),
             ),
           ),
+          if (onSwitchVault != null)
+            Positioned(
+              top: 12,
+              right: 12,
+              child: WorkbenchIconButton(
+                icon: const Icon(LucideIcons.folders, color: _emerald),
+                tooltip: '切换 Vault',
+                semanticLabel: '切换 Vault',
+                onPressed: onSwitchVault,
+              ),
+            ),
         ],
       ),
     ),

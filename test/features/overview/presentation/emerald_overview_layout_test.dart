@@ -37,5 +37,33 @@ void main() {
     expect(logo.fit, BoxFit.contain);
     expect(find.text('最近使用的资源'), findsOneWidget);
     expect(find.text('同步状态'), findsOneWidget);
+    expect(find.bySemanticsLabel('切换 Vault'), findsNothing);
+  });
+
+  testWidgets('shows switch vault action and invokes the callback', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1672, 940));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var switched = false;
+
+    await tester.pumpWidget(
+      MacosApp(
+        theme: MacosThemeData.dark(),
+        home: WorkbenchShadScope(
+          child: WorkbenchShell(
+            vaultRootPath: '/reference-vault',
+            onSwitchVault: () => switched = true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final switchButton = find.bySemanticsLabel('切换 Vault');
+    expect(switchButton, findsOneWidget);
+    await tester.tap(switchButton);
+    await tester.pump();
+    expect(switched, isTrue);
   });
 }

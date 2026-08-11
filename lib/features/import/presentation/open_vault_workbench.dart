@@ -39,10 +39,12 @@ class OpenVaultWorkbench extends StatefulWidget {
     super.key,
     required this.vaultController,
     required this.openState,
+    this.onSwitchVault,
   });
 
   final VaultController vaultController;
   final VaultOpen openState;
+  final VoidCallback? onSwitchVault;
 
   @override
   State<OpenVaultWorkbench> createState() => _OpenVaultWorkbenchState();
@@ -524,6 +526,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                   },
                   onToggleFavorite: _toggleFavorite,
                   onDeleteResource: _deleteResource,
+                  onSwitchVault: widget.onSwitchVault,
                   metadataController: _metadataController,
                   promptController: _promptController,
                   skillController: _skillController,

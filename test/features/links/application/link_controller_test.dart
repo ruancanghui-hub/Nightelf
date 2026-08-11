@@ -75,6 +75,18 @@ void main() {
     expect(bubbles.hidden, contains(renamed.id));
   });
 
+  test('rename title still works when draft URL is temporarily invalid', () async {
+    await controller.create(
+      title: '旧标题',
+      url: 'https://example.com',
+    );
+    controller.updateDraftUrl('javascript:alert(1)');
+    final renamed = await controller.rename('自定义名称');
+    expect(renamed.title, '自定义名称');
+    expect(renamed.uri.toString(), 'https://example.com');
+    expect(controller.document?.title, '自定义名称');
+  });
+
   test('native bubble dismiss persists floatingBubble false', () async {
     await controller.create(
       title: '示例',

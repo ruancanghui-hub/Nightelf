@@ -118,6 +118,14 @@ class _LinkEditorState extends State<_LinkEditor> {
       _urlController.text = widget.controller.draftUrl;
       _notesController.text = widget.controller.draftNotes;
       _browserUrl = document?.uri.toString() ?? widget.controller.draftUrl;
+    } else if (document != null &&
+        _titleController.text != document.title &&
+        !_titleController.value.composing.isValid) {
+      if (!_titleController.selection.isValid ||
+          _titleController.selection.baseOffset ==
+              _titleController.text.length) {
+        _titleController.text = document.title;
+      }
     }
   }
 
@@ -129,9 +137,25 @@ class _LinkEditorState extends State<_LinkEditor> {
     super.dispose();
   }
 
-  Future<void> _saveTitle(String value) async {
-    final renamed = await widget.controller.rename(value);
-    await widget.onRenamed?.call(renamed.relativePath);
+  Future<void> _saveTitle([String? value]) async {
+    final current = widget.controller.document?.title ?? '';
+    final next = (value ?? _titleController.text).trim();
+    if (next.isEmpty) {
+      _titleController.text = current;
+      return;
+    }
+    if (next == current) {
+      return;
+    }
+    try {
+      final renamed = await widget.controller.rename(next);
+      if (_titleController.text != renamed.title) {
+        _titleController.text = renamed.title;
+      }
+      await widget.onRenamed?.call(renamed.relativePath);
+    } on Object {
+      // LinkController surfaces errorMessage for invalid state.
+    }
   }
 
   Future<void> _saveAddress(String value) async {
@@ -175,7 +199,11 @@ class _LinkEditorState extends State<_LinkEditor> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 760;
-          final header = _LinkIdentityHeader(controller: widget.controller);
+          final header = _LinkIdentityHeader(
+            controller: widget.controller,
+            titleController: _titleController,
+            onSaveTitle: _saveTitle,
+          );
           final browser = Container(
             key: const ValueKey('link-browser-pane'),
             constraints: const BoxConstraints(minHeight: 360),
@@ -238,17 +266,22 @@ class _LinkEditorState extends State<_LinkEditor> {
 }
 
 class _LinkIdentityHeader extends StatelessWidget {
-  const _LinkIdentityHeader({required this.controller});
+  const _LinkIdentityHeader({
+    required this.controller,
+    required this.titleController,
+    required this.onSaveTitle,
+  });
 
   final LinkController controller;
+  final TextEditingController titleController;
+  final Future<void> Function([String? value]) onSaveTitle;
 
   @override
   Widget build(BuildContext context) {
     final document = controller.document!;
     return Container(
       key: const ValueKey('link-workspace-header'),
-      height: 72,
-      padding: const EdgeInsets.symmetric(horizontal: 18),
+      padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
       decoration: const BoxDecoration(
         color: Color(0xFF06120E),
         border: Border(
@@ -278,17 +311,32 @@ class _LinkIdentityHeader extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  document.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFFF1FFF7),
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: WorkbenchInput(
+                        key: const ValueKey('link-header-title-field'),
+                        controller: titleController,
+                        placeholder: '自定义标题',
+                        semanticLabel: '网站链接标题',
+                        onSubmitted: (value) => onSaveTitle(value),
+                        onEditingComplete: () => onSaveTitle(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    WorkbenchIconButton(
+                      width: 34,
+                      height: 34,
+                      iconSize: 16,
+                      variant: WorkbenchButtonVariant.primary,
+                      tooltip: '保存标题',
+                      semanticLabel: '保存标题',
+                      onPressed: () => onSaveTitle(),
+                      icon: const Icon(LucideIcons.check),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Text(
                   document.uri.toString(),
                   maxLines: 1,
@@ -352,7 +400,7 @@ class _LinkDetailsInspector extends StatefulWidget {
   final Future<void> Function(String resourceId)? onToggleFavorite;
   final TextEditingController titleController;
   final TextEditingController notesController;
-  final ValueChanged<String> onSaveTitle;
+  final Future<void> Function([String? value]) onSaveTitle;
   final VoidCallback onSaveNotes;
 
   @override
@@ -476,11 +524,30 @@ class _LinkDetailsInspectorState extends State<_LinkDetailsInspector> {
             const SizedBox(height: 22),
             const WorkbenchFieldLabel('标题'),
             const SizedBox(height: 7),
-            WorkbenchInput(
-              key: const ValueKey('link-title-field'),
-              controller: widget.titleController,
-              placeholder: '输入标题',
-              onSubmitted: widget.onSaveTitle,
+            Row(
+              children: [
+                Expanded(
+                  child: WorkbenchInput(
+                    key: const ValueKey('link-title-field'),
+                    controller: widget.titleController,
+                    placeholder: '自定义标题',
+                    semanticLabel: '网站链接标题',
+                    onSubmitted: (value) => widget.onSaveTitle(value),
+                    onEditingComplete: () => widget.onSaveTitle(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                WorkbenchIconButton(
+                  width: 34,
+                  height: 34,
+                  iconSize: 16,
+                  variant: WorkbenchButtonVariant.primary,
+                  tooltip: '保存标题',
+                  semanticLabel: '保存标题',
+                  onPressed: () => widget.onSaveTitle(),
+                  icon: const Icon(LucideIcons.check),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
             Row(

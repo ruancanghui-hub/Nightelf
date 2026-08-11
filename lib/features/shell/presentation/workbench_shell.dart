@@ -37,6 +37,7 @@ class WorkbenchShell extends StatefulWidget {
     this.vaultRootPath,
     this.onToggleFavorite,
     this.onDeleteResource,
+    this.onSwitchVault,
     this.metadataController,
     this.promptController,
     this.skillController,
@@ -60,6 +61,7 @@ class WorkbenchShell extends StatefulWidget {
   final String? vaultRootPath;
   final Future<void> Function(String resourceId)? onToggleFavorite;
   final Future<void> Function(WorkbenchResource resource)? onDeleteResource;
+  final VoidCallback? onSwitchVault;
   final MetadataController? metadataController;
   final PromptController? promptController;
   final SkillController? skillController;
@@ -600,6 +602,8 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                     _selectDestination,
                                                 onResourceSelected:
                                                     _openResource,
+                                                onSwitchVault:
+                                                    widget.onSwitchVault,
                                               )
                                             : Row(
                                                 children: [
