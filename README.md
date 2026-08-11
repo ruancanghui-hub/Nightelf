@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <a href="docs/images/nightelf-workbench.png"><img src="docs/images/nightelf-workbench.png" alt="Nightelf workbench showing the Vault sidebar, workspace, and metadata inspector"></a>
+  <a href="docs/images/nightelf-workbench.png"><img src="docs/images/nightelf-workbench.png" alt="Nightelf workbench showing the Vault sidebar, global search, recent resources, and overview dashboard"></a>
 </p>
 
 <p align="center">如果 Nightelf 适合你的工作流，欢迎给仓库点一颗 Star。</p>
