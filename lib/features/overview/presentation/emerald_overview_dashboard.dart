@@ -23,6 +23,7 @@ class EmeraldOverviewDashboard extends StatelessWidget {
     required this.onTypeSelected,
     required this.onResourceSelected,
     this.onSwitchVault,
+    this.onFavoritesSelected,
     super.key,
   });
 
@@ -33,6 +34,7 @@ class EmeraldOverviewDashboard extends StatelessWidget {
   final ValueChanged<ResourceType> onTypeSelected;
   final ValueChanged<WorkbenchResource> onResourceSelected;
   final VoidCallback? onSwitchVault;
+  final VoidCallback? onFavoritesSelected;
 
   static const _canvas = Color(0xFF030B09);
   static const _panel = Color(0xE60A1916);
@@ -348,7 +350,13 @@ class EmeraldOverviewDashboard extends StatelessWidget {
         stats.updatedToday.toString(),
       ),
       _StatRow(LucideIcons.folderOpen, '今日打开', stats.openedToday.toString()),
-      _StatRow(LucideIcons.star, '收藏资源', stats.favoriteCount.toString()),
+      _StatRow(
+        LucideIcons.star,
+        '收藏资源',
+        stats.favoriteCount.toString(),
+        semanticLabel: '打开收藏夹列表',
+        onTap: onFavoritesSelected,
+      ),
       _StatRow(LucideIcons.library, '资源总数', stats.resourceCount.toString()),
     ], height: 249);
   }
@@ -446,35 +454,67 @@ class _TodayOverviewStats {
 }
 
 class _StatRow extends StatelessWidget {
-  const _StatRow(this.icon, this.label, this.value);
+  const _StatRow(
+    this.icon,
+    this.label,
+    this.value, {
+    this.semanticLabel,
+    this.onTap,
+  });
+
   final IconData icon;
   final String label;
   final String value;
+  final String? semanticLabel;
+  final VoidCallback? onTap;
+
   @override
-  Widget build(BuildContext context) => Padding(
-    key: ValueKey('stat-row-$label'),
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      children: [
-        Icon(icon, color: const Color(0xFF9BB4AB), size: 17),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(color: Color(0xFFBDD0C7), fontSize: 13),
+  Widget build(BuildContext context) {
+    final row = Padding(
+      key: ValueKey('stat-row-$label'),
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF9BB4AB), size: 17),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: Color(0xFFBDD0C7), fontSize: 13),
+            ),
           ),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Color(0xFFF2FFF8),
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFFF2FFF8),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
+        ],
+      ),
+    );
+
+    final action = onTap;
+    if (action == null) {
+      return row;
+    }
+    return Semantics(
+      button: true,
+      container: true,
+      enabled: true,
+      excludeSemantics: true,
+      label: semanticLabel ?? label,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: action,
+          child: row,
         ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 }
 
 class _VaultSyncSection extends ConsumerStatefulWidget {

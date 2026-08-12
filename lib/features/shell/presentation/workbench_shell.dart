@@ -94,6 +94,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   late final FocusNode _contentFocusNode;
   bool _isPaletteOpen = false;
   bool _showOverview = false;
+  bool _showFavoritesList = false;
   bool _inspectorVisible = true;
   double _sidebarWidth = 248;
   CollectionRecord? _editingCollection;
@@ -152,9 +153,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     _tabsController = WorkspaceTabsController()..addListener(_onTabsChanged);
     widget.metadataController?.addListener(_onMetadataChanged);
     if (widget.metadataController != null) {
-      _controller.applyRecentEntries(
-        widget.metadataController!.recentEntries,
-      );
+      _controller.applyRecentEntries(widget.metadataController!.recentEntries);
       _controller.applyFavoriteIds(widget.metadataController!.favoriteIds);
     }
     if (_controller.allResources.isNotEmpty) {
@@ -316,14 +315,14 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0C211A),
-                      border:
-                          Border.all(color: const Color(0xFF1B4D40)),
+                      border: Border.all(color: const Color(0xFF1B4D40)),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     height: 96,
                     child: ListView.builder(
-                      itemCount:
-                          conflictFiles.length > 8 ? 8 : conflictFiles.length,
+                      itemCount: conflictFiles.length > 8
+                          ? 8
+                          : conflictFiles.length,
                       itemBuilder: (context, index) {
                         return Text(
                           conflictFiles[index],
@@ -511,7 +510,10 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   }
 
   void _selectDestination(ResourceType type) {
-    setState(() => _showOverview = false);
+    setState(() {
+      _showOverview = false;
+      _showFavoritesList = false;
+    });
     _controller.selectDestination(type);
     widget.onDestinationChanged?.call(type);
     final matching = _controller.selectedResources;
@@ -521,8 +523,11 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   }
 
   Future<void> _openResource(WorkbenchResource resource) async {
-    if (_showOverview) {
-      setState(() => _showOverview = false);
+    if (_showOverview || _showFavoritesList) {
+      setState(() {
+        _showOverview = false;
+        _showFavoritesList = false;
+      });
     }
     _controller.selectResource(resource);
     _tabsController.openTab(_tabFor(resource));
@@ -556,8 +561,11 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   }
 
   void _activateTab(String resourceId) {
-    if (_showOverview) {
-      setState(() => _showOverview = false);
+    if (_showOverview || _showFavoritesList) {
+      setState(() {
+        _showOverview = false;
+        _showFavoritesList = false;
+      });
     }
     final resource = _controller.resourceById(resourceId);
     if (resource == null) {
@@ -612,6 +620,13 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   void _toggleInspector() {
     setState(() => _inspectorVisible = !_inspectorVisible);
     _schedulePersistWorkspace();
+  }
+
+  void _openFavoritesList() {
+    setState(() {
+      _showOverview = false;
+      _showFavoritesList = true;
+    });
   }
 
   Map<Type, Action<Intent>> get _actions => {
@@ -676,15 +691,15 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     ),
   };
 
-  Widget _buildSidebar({
-    required double width,
-    required bool compact,
-  }) {
+  Widget _buildSidebar({required double width, required bool compact}) {
     return WorkbenchSidebar(
       controller: _controller,
       width: compact ? 72 : width * 0.20335,
       overviewSelected: _showOverview,
-      onOverviewSelected: () => setState(() => _showOverview = true),
+      onOverviewSelected: () => setState(() {
+        _showOverview = true;
+        _showFavoritesList = false;
+      }),
       compact: compact,
       focusNode: _sidebarFocusNode,
       activeResourceId: _tabsController.activeResourceId,
@@ -793,11 +808,29 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                     _openResource,
                                                 onSwitchVault:
                                                     widget.onSwitchVault,
+                                                onFavoritesSelected:
+                                                    _openFavoritesList,
                                               )
                                             : Row(
                                                 children: [
                                                   ResourceListPane(
                                                     controller: _controller,
+                                                    title: _showFavoritesList
+                                                        ? '收藏夹'
+                                                        : null,
+                                                    resources:
+                                                        _showFavoritesList
+                                                        ? _controller
+                                                              .favoriteResources
+                                                        : null,
+                                                    searchPlaceholder:
+                                                        _showFavoritesList
+                                                        ? '搜索收藏夹'
+                                                        : null,
+                                                    emptyMessage:
+                                                        _showFavoritesList
+                                                        ? '收藏夹暂无收藏资源'
+                                                        : null,
                                                     onResourceSelected:
                                                         _openResource,
                                                     onToggleFavorite:
@@ -805,61 +838,69 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                     onDeleteResource:
                                                         widget.onDeleteResource,
                                                     onCreatePrompt:
-                                                        _controller
-                                                                .selectedDestination ==
-                                                            ResourceType
-                                                                .aiPrompt
+                                                        !_showFavoritesList &&
+                                                            _controller
+                                                                    .selectedDestination ==
+                                                                ResourceType
+                                                                    .aiPrompt
                                                         ? widget.onCreatePrompt
                                                         : null,
                                                     onDuplicatePrompt:
-                                                        _controller
-                                                                .selectedDestination ==
-                                                            ResourceType
-                                                                .aiPrompt
+                                                        !_showFavoritesList &&
+                                                            _controller
+                                                                    .selectedDestination ==
+                                                                ResourceType
+                                                                    .aiPrompt
                                                         ? widget
                                                               .onDuplicatePrompt
                                                         : null,
                                                     onImportSkill:
-                                                        _controller
-                                                                .selectedDestination ==
-                                                            ResourceType
-                                                                .skillFolder
+                                                        !_showFavoritesList &&
+                                                            _controller
+                                                                    .selectedDestination ==
+                                                                ResourceType
+                                                                    .skillFolder
                                                         ? widget.onImportSkill
                                                         : null,
                                                     onCreateMcp:
-                                                        _controller
-                                                                .selectedDestination ==
-                                                            ResourceType
-                                                                .mcpConfiguration
+                                                        !_showFavoritesList &&
+                                                            _controller
+                                                                    .selectedDestination ==
+                                                                ResourceType
+                                                                    .mcpConfiguration
                                                         ? widget.onCreateMcp
                                                         : null,
                                                     onCreateLink:
-                                                        _controller
-                                                                .selectedDestination ==
-                                                            ResourceType
-                                                                .websiteLink
+                                                        !_showFavoritesList &&
+                                                            _controller
+                                                                    .selectedDestination ==
+                                                                ResourceType
+                                                                    .websiteLink
                                                         ? widget.onCreateLink
                                                         : null,
                                                     onPasteLink:
-                                                        _controller
-                                                                .selectedDestination ==
-                                                            ResourceType
-                                                                .websiteLink
+                                                        !_showFavoritesList &&
+                                                            _controller
+                                                                    .selectedDestination ==
+                                                                ResourceType
+                                                                    .websiteLink
                                                         ? widget.onPasteLink
                                                         : null,
                                                     onCreateWorkflow:
-                                                        _controller
-                                                                .selectedDestination ==
-                                                            ResourceType
-                                                                .workflowFile
+                                                        !_showFavoritesList &&
+                                                            _controller
+                                                                    .selectedDestination ==
+                                                                ResourceType
+                                                                    .workflowFile
                                                         ? widget
                                                               .onCreateWorkflow
                                                         : null,
                                                     onImportWorkflow:
-                                                        _controller
-                                                                .selectedDestination ==
-                                                            ResourceType
-                                                                .workflowFile
+                                                        !_showFavoritesList &&
+                                                            _controller
+                                                                    .selectedDestination ==
+                                                                ResourceType
+                                                                    .workflowFile
                                                         ? widget
                                                               .onImportWorkflow
                                                         : null,
@@ -924,7 +965,7 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                         ],
                       ),
                     ),
-                    if (palette != null) palette,
+                    ?palette,
                     if (showEditor)
                       CollectionEditorSheet(
                         metadataController: metadata,

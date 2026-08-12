@@ -198,6 +198,70 @@ void main() {
     expectStatValue(tester, '收藏资源', '2');
     expectStatValue(tester, '资源总数', '3');
   });
+
+  testWidgets(
+    'overview opens a favorites list filtered to favorite resources',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1672, 940));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      const favoritePrompt = WorkbenchResource(
+        id: 'prompt-favorite',
+        type: ResourceType.aiPrompt,
+        title: '收藏提示词',
+        subtitle: 'prompts/favorite.md',
+        isFavorite: true,
+        relativePath: 'prompts/favorite.md',
+      );
+      const favoriteLink = WorkbenchResource(
+        id: 'link-favorite',
+        type: ResourceType.websiteLink,
+        title: '收藏链接',
+        subtitle: 'links/favorite.md',
+        isFavorite: true,
+        relativePath: 'links/favorite.md',
+      );
+      const regularPrompt = WorkbenchResource(
+        id: 'prompt-regular',
+        type: ResourceType.aiPrompt,
+        title: '普通提示词',
+        subtitle: 'prompts/regular.md',
+        isFavorite: false,
+        relativePath: 'prompts/regular.md',
+      );
+
+      await tester.pumpWidget(
+        MacosApp(
+          theme: MacosThemeData.dark(),
+          home: const ProviderScope(
+            child: WorkbenchShadScope(
+              child: WorkbenchShell(
+                vaultRootPath: '/reference-vault',
+                resources: [favoritePrompt, favoriteLink, regularPrompt],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('打开收藏夹列表'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('收藏夹'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('resource-list-item-prompt-favorite')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('resource-list-item-link-favorite')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('resource-list-item-prompt-regular')),
+        findsNothing,
+      );
+    },
+  );
 }
 
 void expectStatValue(WidgetTester tester, String label, String value) {
