@@ -784,6 +784,8 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                     _controller.allResources,
                                                 recentResources:
                                                     _controller.recentResources,
+                                                recentOpenedAt:
+                                                    _controller.recentOpenedAt,
                                                 labelFor: _controller.labelFor,
                                                 onTypeSelected:
                                                     _selectDestination,

@@ -13,6 +13,7 @@ shell.WorkbenchResource workbenchResourceFromRecord(ResourceRecord record) {
         : record.description,
     isFavorite: false,
     relativePath: record.relativePath,
+    modifiedAt: record.modifiedAt,
   );
 }
 

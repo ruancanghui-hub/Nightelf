@@ -1,4 +1,6 @@
 import 'package:ai_workbench/features/overview/presentation/emerald_overview_dashboard.dart';
+import 'package:ai_workbench/features/metadata/domain/resource_metadata.dart';
+import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart';
 import 'package:ai_workbench/shared/ui/workbench_ui.dart';
@@ -71,4 +73,135 @@ void main() {
     await tester.pump();
     expect(switched, isTrue);
   });
+
+  testWidgets('shows relative opened time for recent overview resources', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1672, 940));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final shellKey = GlobalKey<WorkbenchShellState>();
+    const resource = WorkbenchResource(
+      id: 'prompt-old',
+      type: ResourceType.aiPrompt,
+      title: '旧提示词',
+      subtitle: 'prompts/old.md',
+      isFavorite: false,
+      relativePath: 'prompts/old.md',
+    );
+
+    await tester.pumpWidget(
+      MacosApp(
+        theme: MacosThemeData.dark(),
+        home: ProviderScope(
+          child: WorkbenchShadScope(
+            child: WorkbenchShell(
+              key: shellKey,
+              vaultRootPath: '/reference-vault',
+              resources: const [resource],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    shellKey.currentState!.applyRecentEntries([
+      RecentResourceEntry(
+        resourceId: resource.id,
+        openedAt: DateTime.now().subtract(const Duration(hours: 2)),
+      ),
+    ]);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(
+        of: find.byType(EmeraldOverviewDashboard),
+        matching: find.text(resource.title),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(EmeraldOverviewDashboard),
+        matching: find.text('2 小时前'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('calculates today overview from resource data', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1672, 940));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final now = DateTime.now();
+    final today = now.subtract(const Duration(hours: 1));
+    final yesterday = now.subtract(const Duration(days: 1));
+    final resources = [
+      WorkbenchResource(
+        id: 'prompt-today',
+        type: ResourceType.aiPrompt,
+        title: '今日提示词',
+        subtitle: 'prompts/today.md',
+        isFavorite: true,
+        relativePath: 'prompts/today.md',
+        modifiedAt: today,
+      ),
+      WorkbenchResource(
+        id: 'link-yesterday',
+        type: ResourceType.websiteLink,
+        title: '昨日链接',
+        subtitle: 'links/yesterday.md',
+        isFavorite: true,
+        relativePath: 'links/yesterday.md',
+        modifiedAt: yesterday,
+      ),
+      const WorkbenchResource(
+        id: 'workflow-untracked',
+        type: ResourceType.workflowFile,
+        title: '无时间流程',
+        subtitle: 'workflows/untracked.mmd',
+        isFavorite: false,
+        relativePath: 'workflows/untracked.mmd',
+      ),
+    ];
+    final openedAt = <String, DateTime>{
+      'prompt-today': today,
+      'link-yesterday': yesterday,
+    };
+
+    await tester.pumpWidget(
+      MacosApp(
+        theme: MacosThemeData.dark(),
+        home: ProviderScope(
+          child: WorkbenchShadScope(
+            child: EmeraldOverviewDashboard(
+              resources: resources,
+              recentResources: resources.take(2).toList(),
+              recentOpenedAt: (resourceId) => openedAt[resourceId],
+              labelFor: (type) => switch (type) {
+                ResourceType.aiPrompt => 'AI 提示词',
+                ResourceType.skillFolder => 'SKILL 文件夹',
+                ResourceType.mcpConfiguration => 'MCP 配置',
+                ResourceType.websiteLink => '网站链接',
+                ResourceType.workflowFile => 'Workflow 文件',
+              },
+              onTypeSelected: (_) {},
+              onResourceSelected: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expectStatValue(tester, '今日更新', '1');
+    expectStatValue(tester, '今日打开', '1');
+    expectStatValue(tester, '收藏资源', '2');
+    expectStatValue(tester, '资源总数', '3');
+  });
+}
+
+void expectStatValue(WidgetTester tester, String label, String value) {
+  final row = find.byKey(ValueKey('stat-row-$label'));
+
+  expect(find.descendant(of: row, matching: find.text(value)), findsOneWidget);
 }

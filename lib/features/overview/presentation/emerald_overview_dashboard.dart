@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/shell/presentation/emerald_interactive_surface.dart';
+import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart';
 import 'package:ai_workbench/app/vault_providers.dart';
 import 'package:ai_workbench/features/sync/application/git_sync_service.dart';
 import 'package:ai_workbench/features/vault/application/vault_state.dart';
@@ -17,6 +18,7 @@ class EmeraldOverviewDashboard extends StatelessWidget {
   const EmeraldOverviewDashboard({
     required this.resources,
     required this.recentResources,
+    required this.recentOpenedAt,
     required this.labelFor,
     required this.onTypeSelected,
     required this.onResourceSelected,
@@ -26,6 +28,7 @@ class EmeraldOverviewDashboard extends StatelessWidget {
 
   final List<WorkbenchResource> resources;
   final List<WorkbenchResource> recentResources;
+  final DateTime? Function(String resourceId) recentOpenedAt;
   final String Function(ResourceType type) labelFor;
   final ValueChanged<ResourceType> onTypeSelected;
   final ValueChanged<WorkbenchResource> onResourceSelected;
@@ -207,7 +210,10 @@ class EmeraldOverviewDashboard extends StatelessWidget {
                 child: Text(
                   resource.title,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Color(0xFFE3F3EA), fontSize: 14),
+                  style: const TextStyle(
+                    color: Color(0xFFE3F3EA),
+                    fontSize: 14,
+                  ),
                 ),
               ),
               Container(
@@ -222,7 +228,10 @@ class EmeraldOverviewDashboard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 16),
-              const Text('刚刚', style: TextStyle(color: _muted, fontSize: 12)),
+              Text(
+                formatRelativeOpenedAt(recentOpenedAt(resource.id)),
+                style: const TextStyle(color: _muted, fontSize: 12),
+              ),
               const SizedBox(width: 10),
               const Icon(LucideIcons.ellipsis, color: _muted, size: 17),
             ],
@@ -325,22 +334,30 @@ class EmeraldOverviewDashboard extends StatelessWidget {
     ),
   );
 
-  Widget _todayCard() => _statusCard('今日概览', const [
-    _StatRow(LucideIcons.messageCircle, '新增资源', '12'),
-    _StatRow(LucideIcons.folderOpen, '打开资源', '28'),
-    _StatRow(LucideIcons.star, '收藏资源', '7'),
-    _StatRow(LucideIcons.clock3, '节省时间', '2.6 小时'),
-  ], height: 249);
+  Widget _todayCard() {
+    final stats = _TodayOverviewStats.from(
+      resources: resources,
+      recentResources: recentResources,
+      recentOpenedAt: recentOpenedAt,
+    );
 
-  Widget _syncCard() => _statusCard(
-        '同步状态',
-        [
-          _StatRow(LucideIcons.cloud, 'Git 同步', '—'),
-          const SizedBox(height: 8),
-          _VaultSyncSection(),
-        ],
-        height: 214,
-      );
+    return _statusCard('今日概览', [
+      _StatRow(
+        LucideIcons.messageCircle,
+        '今日更新',
+        stats.updatedToday.toString(),
+      ),
+      _StatRow(LucideIcons.folderOpen, '今日打开', stats.openedToday.toString()),
+      _StatRow(LucideIcons.star, '收藏资源', stats.favoriteCount.toString()),
+      _StatRow(LucideIcons.library, '资源总数', stats.resourceCount.toString()),
+    ], height: 249);
+  }
+
+  Widget _syncCard() => _statusCard('同步状态', [
+    _StatRow(LucideIcons.cloud, 'Git 同步', '—'),
+    const SizedBox(height: 8),
+    _VaultSyncSection(),
+  ], height: 214);
 
   Widget _statusCard(
     String title,
@@ -382,6 +399,52 @@ class EmeraldOverviewDashboard extends StatelessWidget {
   };
 }
 
+class _TodayOverviewStats {
+  const _TodayOverviewStats({
+    required this.updatedToday,
+    required this.openedToday,
+    required this.favoriteCount,
+    required this.resourceCount,
+  });
+
+  final int updatedToday;
+  final int openedToday;
+  final int favoriteCount;
+  final int resourceCount;
+
+  factory _TodayOverviewStats.from({
+    required List<WorkbenchResource> resources,
+    required List<WorkbenchResource> recentResources,
+    required DateTime? Function(String resourceId) recentOpenedAt,
+    DateTime? now,
+  }) {
+    final current = now ?? DateTime.now();
+    return _TodayOverviewStats(
+      updatedToday: resources
+          .where((resource) => _isSameLocalDay(resource.modifiedAt, current))
+          .length,
+      openedToday: recentResources
+          .where(
+            (resource) => _isSameLocalDay(recentOpenedAt(resource.id), current),
+          )
+          .length,
+      favoriteCount: resources.where((resource) => resource.isFavorite).length,
+      resourceCount: resources.length,
+    );
+  }
+
+  static bool _isSameLocalDay(DateTime? value, DateTime current) {
+    if (value == null) {
+      return false;
+    }
+    final local = value.toLocal();
+    final today = current.toLocal();
+    return local.year == today.year &&
+        local.month == today.month &&
+        local.day == today.day;
+  }
+}
+
 class _StatRow extends StatelessWidget {
   const _StatRow(this.icon, this.label, this.value);
   final IconData icon;
@@ -389,6 +452,7 @@ class _StatRow extends StatelessWidget {
   final String value;
   @override
   Widget build(BuildContext context) => Padding(
+    key: ValueKey('stat-row-$label'),
     padding: const EdgeInsets.symmetric(vertical: 6),
     child: Row(
       children: [
@@ -449,12 +513,8 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
       final settings = ref.read(appSettingsProvider);
       final enabled = await settings.readVaultSyncEnabled(rootPath);
       final remoteUrl = await settings.readVaultSyncRemoteUrl(rootPath);
-      final autoPullEnabled = await settings.readVaultAutoPullEnabled(
-        rootPath,
-      );
-      final autoPushEnabled = await settings.readVaultAutoPushEnabled(
-        rootPath,
-      );
+      final autoPullEnabled = await settings.readVaultAutoPullEnabled(rootPath);
+      final autoPushEnabled = await settings.readVaultAutoPushEnabled(rootPath);
       if (!mounted) {
         return;
       }
@@ -496,8 +556,9 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
     // If vault root changed (switch vault), reload config.
     try {
       final vaultState = ref.read(vaultControllerProvider).state;
-      final rootPath =
-          vaultState is VaultOpen ? vaultState.handle.root.path : null;
+      final rootPath = vaultState is VaultOpen
+          ? vaultState.handle.root.path
+          : null;
       if (rootPath != _vaultRootPath) {
         _load();
       }
@@ -551,9 +612,7 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
                         autoPullDraft = !autoPullDraft;
                         setStateDialog(() {});
                       },
-                      child: Text(
-                        autoPullDraft ? '自动 pull：开启' : '自动 pull：关闭',
-                      ),
+                      child: Text(autoPullDraft ? '自动 pull：开启' : '自动 pull：关闭'),
                     ),
                     const SizedBox(height: 10),
                     PushButton(
@@ -563,9 +622,7 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
                         autoPushDraft = !autoPushDraft;
                         setStateDialog(() {});
                       },
-                      child: Text(
-                        autoPushDraft ? '自动 push：开启' : '自动 push：关闭',
-                      ),
+                      child: Text(autoPushDraft ? '自动 push：开启' : '自动 push：关闭'),
                     ),
                   ],
                 ),
@@ -720,8 +777,9 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
                     ),
                     height: 96,
                     child: ListView.builder(
-                      itemCount:
-                          conflictFiles.length > 8 ? 8 : conflictFiles.length,
+                      itemCount: conflictFiles.length > 8
+                          ? 8
+                          : conflictFiles.length,
                       itemBuilder: (context, index) {
                         return Text(
                           conflictFiles[index],
@@ -800,7 +858,8 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
       );
     }
 
-    final enabled = _enabled && (_remoteUrl != null && _remoteUrl!.trim().isNotEmpty);
+    final enabled =
+        _enabled && (_remoteUrl != null && _remoteUrl!.trim().isNotEmpty);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

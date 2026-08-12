@@ -16,6 +16,7 @@ class WorkbenchResource {
     required this.subtitle,
     required this.isFavorite,
     this.relativePath,
+    this.modifiedAt,
   });
 
   final String id;
@@ -27,6 +28,9 @@ class WorkbenchResource {
   /// Vault-relative path when this row comes from a real scan; null for mocks.
   final String? relativePath;
 
+  /// File modification time from the Vault scan when available.
+  final DateTime? modifiedAt;
+
   WorkbenchResource copyWith({
     String? id,
     ResourceType? type,
@@ -34,6 +38,7 @@ class WorkbenchResource {
     String? subtitle,
     bool? isFavorite,
     String? relativePath,
+    DateTime? modifiedAt,
   }) {
     return WorkbenchResource(
       id: id ?? this.id,
@@ -42,6 +47,7 @@ class WorkbenchResource {
       subtitle: subtitle ?? this.subtitle,
       isFavorite: isFavorite ?? this.isFavorite,
       relativePath: relativePath ?? this.relativePath,
+      modifiedAt: modifiedAt ?? this.modifiedAt,
     );
   }
 
@@ -53,10 +59,18 @@ class WorkbenchResource {
         other.title == title &&
         other.subtitle == subtitle &&
         other.isFavorite == isFavorite &&
-        other.relativePath == relativePath;
+        other.relativePath == relativePath &&
+        other.modifiedAt == modifiedAt;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, type, title, subtitle, isFavorite, relativePath);
+  int get hashCode => Object.hash(
+    id,
+    type,
+    title,
+    subtitle,
+    isFavorite,
+    relativePath,
+    modifiedAt,
+  );
 }
