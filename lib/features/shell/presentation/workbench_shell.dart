@@ -24,8 +24,12 @@ import 'package:ai_workbench/features/shell/presentation/workspace_tab_strip.dar
 import 'package:ai_workbench/features/skills/application/skill_controller.dart';
 import 'package:ai_workbench/features/workflows/application/workflow_controller.dart';
 import 'package:ai_workbench/features/workspaces/presentation/workspace_content.dart';
+import 'package:ai_workbench/app/vault_providers.dart';
+import 'package:ai_workbench/features/sync/application/git_sync_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 /// A dark/light Apple-style three-region shell for mock or Vault-backed records.
@@ -96,6 +100,8 @@ class WorkbenchShellState extends State<WorkbenchShell> {
   bool _creatingCollection = false;
   bool _didRestore = false;
   bool _refreshScheduled = false;
+  bool _toolbarSyncEnabled = false;
+  bool _didLoadToolbarSyncEnabled = false;
   Timer? _persistDebounce;
 
   void applyFavoriteIds(Set<String> favoriteIds) {
@@ -172,6 +178,28 @@ class WorkbenchShellState extends State<WorkbenchShell> {
       widget.metadataController?.addListener(_onMetadataChanged);
       _onMetadataChanged();
     }
+    if (oldWidget.vaultRootPath != widget.vaultRootPath) {
+      _showOverview = widget.vaultRootPath != null;
+      _didLoadToolbarSyncEnabled = false;
+      unawaited(_loadToolbarSyncEnabled());
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didLoadToolbarSyncEnabled) {
+      return;
+    }
+    // ProviderScope is an inherited widget; defer reading it until after
+    // the first frame to avoid initState timing issues in some setups/tests.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) {
+        return;
+      }
+      _didLoadToolbarSyncEnabled = true;
+      await _loadToolbarSyncEnabled();
+    });
   }
 
   @override
@@ -187,6 +215,162 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     _sidebarFocusNode.dispose();
     _contentFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadToolbarSyncEnabled() async {
+    final vaultRootPath = widget.vaultRootPath;
+    if (vaultRootPath == null) {
+      if (mounted) {
+        setState(() => _toolbarSyncEnabled = false);
+      }
+      return;
+    }
+
+    try {
+      final container = ProviderScope.containerOf(context);
+      final settings = container.read(appSettingsProvider);
+      final enabled = await settings.readVaultSyncEnabled(vaultRootPath);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _toolbarSyncEnabled = enabled);
+    } on StateError catch (_) {
+      // Unit tests may render WorkbenchShell without Riverpod ProviderScope.
+      if (mounted) {
+        setState(() => _toolbarSyncEnabled = false);
+      }
+    }
+  }
+
+  void _onSyncVaultPressed() {
+    unawaited(_syncVaultFromToolbar());
+  }
+
+  Future<void> _syncVaultFromToolbar() async {
+    final vaultRootPath = widget.vaultRootPath;
+    if (vaultRootPath == null) {
+      return;
+    }
+
+    try {
+      final container = ProviderScope.containerOf(context);
+      final settings = container.read(appSettingsProvider);
+      final remoteUrl = await settings.readVaultSyncRemoteUrl(vaultRootPath);
+      if (remoteUrl == null || remoteUrl.trim().isEmpty) {
+        return;
+      }
+
+      final git = GitSyncService();
+      final result = await git.syncVault(
+        vaultRootPath: vaultRootPath,
+        remoteUrl: remoteUrl,
+      );
+
+      final vaultController = container.read(vaultControllerProvider);
+
+      if (result.status == GitSyncStatus.success) {
+        await vaultController.refreshPaths(const <String>{});
+        return;
+      }
+
+      if (result.status == GitSyncStatus.conflict) {
+        await _showConflictDialog(
+          vaultRootPath: vaultRootPath,
+          conflictFiles: result.conflictFiles,
+        );
+      }
+    } on StateError catch (_) {
+      // No ProviderScope; ignore.
+    }
+  }
+
+  Future<void> _showConflictDialog({
+    required String vaultRootPath,
+    required List<String> conflictFiles,
+  }) async {
+    final command = 'cd "$vaultRootPath" && git status';
+
+    await showMacosAlertDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return MacosAlertDialog(
+          appIcon: const Icon(
+            LucideIcons.alertTriangle,
+            color: Color(0xFFE3B341),
+            size: 48,
+          ),
+          title: const Text('同步冲突'),
+          message: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  '请先在终端手动解决冲突后，再重试同步：',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF9BB4AB)),
+                ),
+                const SizedBox(height: 10),
+                if (conflictFiles.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0C211A),
+                      border:
+                          Border.all(color: const Color(0xFF1B4D40)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    height: 96,
+                    child: ListView.builder(
+                      itemCount:
+                          conflictFiles.length > 8 ? 8 : conflictFiles.length,
+                      itemBuilder: (context, index) {
+                        return Text(
+                          conflictFiles[index],
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFE1F1EA),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                const Text(
+                  '建议终端命令：',
+                  style: TextStyle(fontSize: 12, color: Color(0xFFBDD0C7)),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  command,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFE3F3EA),
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          primaryButton: PushButton(
+            controlSize: ControlSize.large,
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _onSyncVaultPressed();
+            },
+            child: const Text('重试同步'),
+          ),
+          secondaryButton: PushButton(
+            controlSize: ControlSize.large,
+            secondary: true,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('稍后再说'),
+          ),
+        );
+      },
+    );
   }
 
   void _onTabsChanged() {
@@ -584,6 +768,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                 WorkbenchToolbar(
                                   onGlobalSearch: _openPalette,
                                   onToggleInspector: _toggleInspector,
+                                  onSyncVault: _toolbarSyncEnabled
+                                      ? _onSyncVaultPressed
+                                      : null,
                                   inspectorVisible: !collapseInspector,
                                   showActions: !_showOverview,
                                 ),

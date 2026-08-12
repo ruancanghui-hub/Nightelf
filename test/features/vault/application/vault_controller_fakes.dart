@@ -85,11 +85,21 @@ class RecordingSearchIndex implements SearchIndex {
 }
 
 class MemoryAppSettings implements AppSettingsRepository {
-  MemoryAppSettings({this.lastVaultPath, this.lastVaultBookmark});
+  MemoryAppSettings({
+    this.lastVaultPath,
+    this.lastVaultBookmark,
+    this.vaultSyncEnabledByPath,
+    this.vaultSyncRemoteUrlByPath,
+  });
 
   String? lastVaultPath;
   String? lastVaultBookmark;
   int writeCount = 0;
+
+  Map<String, bool>? vaultSyncEnabledByPath;
+  Map<String, String?>? vaultSyncRemoteUrlByPath;
+  Map<String, bool>? vaultAutoPullEnabledByPath;
+  Map<String, bool>? vaultAutoPushEnabledByPath;
 
   @override
   Future<String?> readLastVaultPath() async => lastVaultPath;
@@ -122,6 +132,60 @@ class MemoryAppSettings implements AppSettingsRepository {
     }
     lastVaultPath = path;
     lastVaultBookmark = bookmarkBase64;
+  }
+
+  @override
+  Future<bool> readVaultSyncEnabled(String vaultRootPath) async =>
+      vaultSyncEnabledByPath?[vaultRootPath] ?? false;
+
+  @override
+  Future<String?> readVaultSyncRemoteUrl(String vaultRootPath) async =>
+      vaultSyncRemoteUrlByPath?[vaultRootPath];
+
+  @override
+  Future<void> writeVaultSyncConfig({
+    required String vaultRootPath,
+    required bool enabled,
+    String? remoteUrl,
+  }) async {
+    writeCount += 1;
+    vaultSyncEnabledByPath ??= <String, bool>{};
+    vaultSyncRemoteUrlByPath ??= <String, String?>{};
+
+    vaultSyncEnabledByPath![vaultRootPath] = enabled;
+    if (!enabled) {
+      vaultSyncRemoteUrlByPath!.remove(vaultRootPath);
+    } else {
+      vaultSyncRemoteUrlByPath![vaultRootPath] = remoteUrl;
+    }
+  }
+
+  @override
+  Future<bool> readVaultAutoPullEnabled(String vaultRootPath) async =>
+      vaultAutoPullEnabledByPath?[vaultRootPath] ?? false;
+
+  @override
+  Future<void> writeVaultAutoPullEnabled({
+    required String vaultRootPath,
+    required bool enabled,
+  }) async {
+    writeCount += 1;
+    vaultAutoPullEnabledByPath ??= <String, bool>{};
+    vaultAutoPullEnabledByPath![vaultRootPath] = enabled;
+  }
+
+  @override
+  Future<bool> readVaultAutoPushEnabled(String vaultRootPath) async =>
+      vaultAutoPushEnabledByPath?[vaultRootPath] ?? false;
+
+  @override
+  Future<void> writeVaultAutoPushEnabled({
+    required String vaultRootPath,
+    required bool enabled,
+  }) async {
+    writeCount += 1;
+    vaultAutoPushEnabledByPath ??= <String, bool>{};
+    vaultAutoPushEnabledByPath![vaultRootPath] = enabled;
   }
 }
 

@@ -6,6 +6,7 @@ import 'package:ai_workbench/features/vault/application/vault_controller.dart';
 import 'package:ai_workbench/features/vault/data/file_vault_repository.dart';
 import 'package:ai_workbench/features/vault/data/resource_scanner.dart';
 import 'package:ai_workbench/features/vault/data/vault_repository.dart';
+import 'package:ai_workbench/features/sync/application/git_sync_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final appSettingsProvider = Provider<AppSettingsRepository>(
@@ -26,12 +27,17 @@ final searchIndexProvider = Provider<SearchIndex>((ref) {
   return index;
 });
 
+final gitSyncServiceProvider = Provider<GitSyncService>((ref) {
+  return GitSyncService();
+});
+
 final vaultControllerProvider = Provider<VaultController>((ref) {
   final controller = VaultController(
     repository: ref.watch(vaultRepositoryProvider),
     scan: ref.watch(resourceScannerProvider).scan,
     index: ref.watch(searchIndexProvider),
     settings: ref.watch(appSettingsProvider),
+    gitSyncService: ref.watch(gitSyncServiceProvider),
   );
   ref.onDispose(controller.dispose);
   return controller;

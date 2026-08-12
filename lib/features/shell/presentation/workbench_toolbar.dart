@@ -7,6 +7,7 @@ class WorkbenchToolbar extends StatelessWidget {
   const WorkbenchToolbar({
     this.onGlobalSearch,
     this.onToggleInspector,
+    this.onSyncVault,
     this.inspectorVisible = true,
     this.showActions = true,
     super.key,
@@ -14,6 +15,7 @@ class WorkbenchToolbar extends StatelessWidget {
 
   final VoidCallback? onGlobalSearch;
   final VoidCallback? onToggleInspector;
+  final VoidCallback? onSyncVault;
   final bool inspectorVisible;
   final bool showActions;
 
@@ -47,7 +49,7 @@ class WorkbenchToolbar extends StatelessWidget {
               size: WorkbenchButtonSize.sm,
               variant: WorkbenchButtonVariant.outline,
               semanticLabel: '同步',
-              onPressed: null,
+              onPressed: onSyncVault,
               leading: const Icon(LucideIcons.refreshCw, size: 16),
               child: const Text('同步'),
             ),

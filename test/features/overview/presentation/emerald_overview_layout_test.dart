@@ -3,6 +3,7 @@ import 'package:ai_workbench/features/shell/presentation/workbench_shell.dart';
 import 'package:ai_workbench/features/shell/presentation/workbench_sidebar.dart';
 import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:macos_ui/macos_ui.dart';
 
@@ -15,8 +16,10 @@ void main() {
     await tester.pumpWidget(
       MacosApp(
         theme: MacosThemeData.dark(),
-        home: const WorkbenchShadScope(
-          child: WorkbenchShell(vaultRootPath: '/reference-vault'),
+        home: const ProviderScope(
+          child: WorkbenchShadScope(
+            child: WorkbenchShell(vaultRootPath: '/reference-vault'),
+          ),
         ),
       ),
     );
@@ -50,10 +53,12 @@ void main() {
     await tester.pumpWidget(
       MacosApp(
         theme: MacosThemeData.dark(),
-        home: WorkbenchShadScope(
-          child: WorkbenchShell(
-            vaultRootPath: '/reference-vault',
-            onSwitchVault: () => switched = true,
+        home: ProviderScope(
+          child: WorkbenchShadScope(
+            child: WorkbenchShell(
+              vaultRootPath: '/reference-vault',
+              onSwitchVault: () => switched = true,
+            ),
           ),
         ),
       ),

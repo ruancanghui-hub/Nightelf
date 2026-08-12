@@ -10,6 +10,7 @@ import 'package:ai_workbench/features/vault/domain/resource_record.dart';
 import 'package:ai_workbench/features/vault/domain/vault_handle.dart';
 import 'package:ai_workbench/shared/platform/directory_picker_service.dart';
 import 'package:ai_workbench/shared/platform/folder_icon_service.dart';
+import 'package:ai_workbench/features/sync/application/git_sync_service.dart';
 import 'package:flutter/foundation.dart';
 
 typedef VaultScan = Future<List<ResourceRecord>> Function(VaultHandle vault);
@@ -21,6 +22,7 @@ class VaultController extends ChangeNotifier {
     required VaultScan scan,
     required SearchIndex index,
     required AppSettingsRepository settings,
+    GitSyncService? gitSyncService,
     VaultWatch? watch,
     DirectoryPickerService? vaultAccess,
     FolderIconService? folderIcons,
@@ -28,6 +30,7 @@ class VaultController extends ChangeNotifier {
        _scan = scan,
        _index = index,
        _settings = settings,
+       _gitSyncService = gitSyncService ?? GitSyncService(),
        _watch = watch ?? VaultChangeWatcher().watch,
        _vaultAccess = vaultAccess ?? defaultDirectoryPickerService(),
        _folderIcons = folderIcons ?? defaultFolderIconService();
@@ -39,6 +42,7 @@ class VaultController extends ChangeNotifier {
   final VaultWatch _watch;
   final DirectoryPickerService _vaultAccess;
   final FolderIconService _folderIcons;
+  final GitSyncService _gitSyncService;
 
   VaultState _state = const VaultClosed();
   StreamSubscription<Set<String>>? _watchSubscription;
@@ -173,6 +177,7 @@ class VaultController extends ChangeNotifier {
   }
 
   Future<void> _activate(VaultHandle handle, {bool remember = true}) async {
+    await _maybeAutoPull(handle.root.path);
     final resources = await _scan(handle);
     await _index.rebuild(resources);
     var bookmark = _pendingBookmark;
@@ -199,6 +204,44 @@ class VaultController extends ChangeNotifier {
       unawaited(refreshPaths(paths));
     });
     _setState(VaultOpen(handle: handle, resources: resources));
+  }
+
+  Future<void> _maybeAutoPull(String vaultRootPath) async {
+    try {
+      final enabled = await _settings.readVaultSyncEnabled(vaultRootPath);
+      if (!enabled) {
+        return;
+      }
+      final autoPull = await _settings.readVaultAutoPullEnabled(vaultRootPath);
+      if (!autoPull) {
+        return;
+      }
+      final remoteUrl = await _settings.readVaultSyncRemoteUrl(vaultRootPath);
+      if (remoteUrl == null || remoteUrl.trim().isEmpty) {
+        return;
+      }
+
+      final result = await _gitSyncService.pullVault(
+        vaultRootPath: vaultRootPath,
+        remoteUrl: remoteUrl,
+      );
+
+      // Best-effort: conflict/error should never block opening the vault.
+      // The user can always run manual sync later.
+      if (result.status == GitSyncStatus.success) {
+        final autoPush = await _settings.readVaultAutoPushEnabled(
+          vaultRootPath,
+        );
+        if (autoPush) {
+          await _gitSyncService.pushVault(
+            vaultRootPath: vaultRootPath,
+            remoteUrl: remoteUrl,
+          );
+        }
+      }
+    } catch (_) {
+      // ignore auto pull failures (privacy, network, missing git, etc.)
+    }
   }
 
   Future<void> _brandFolder(String path) async {

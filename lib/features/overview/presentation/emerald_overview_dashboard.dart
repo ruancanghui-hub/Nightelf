@@ -1,7 +1,13 @@
+import 'dart:async';
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart';
 import 'package:ai_workbench/features/shell/presentation/emerald_interactive_surface.dart';
+import 'package:ai_workbench/app/vault_providers.dart';
+import 'package:ai_workbench/features/sync/application/git_sync_service.dart';
+import 'package:ai_workbench/features/vault/application/vault_state.dart';
 import 'package:ai_workbench/shared/ui/workbench_ui.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:macos_ui/macos_ui.dart';
 import 'package:shadcn_ui/shadcn_ui.dart';
 
 /// The home surface shown before a resource is opened. It deliberately keeps
@@ -326,11 +332,15 @@ class EmeraldOverviewDashboard extends StatelessWidget {
     _StatRow(LucideIcons.clock3, '节省时间', '2.6 小时'),
   ], height: 249);
 
-  Widget _syncCard() => _statusCard('同步状态', const [
-    _StatRow(LucideIcons.cloud, '所有数据已同步', '✓'),
-    SizedBox(height: 8),
-    _SyncButton(),
-  ], height: 214);
+  Widget _syncCard() => _statusCard(
+        '同步状态',
+        [
+          _StatRow(LucideIcons.cloud, 'Git 同步', '—'),
+          const SizedBox(height: 8),
+          _VaultSyncSection(),
+        ],
+        height: 214,
+      );
 
   Widget _statusCard(
     String title,
@@ -403,23 +413,442 @@ class _StatRow extends StatelessWidget {
   );
 }
 
-class _SyncButton extends StatelessWidget {
-  const _SyncButton();
+class _VaultSyncSection extends ConsumerStatefulWidget {
+  const _VaultSyncSection();
+
   @override
-  Widget build(BuildContext context) => Container(
-    height: 40,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      border: Border.all(color: const Color(0xFF1B4D40)),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: const Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+  ConsumerState<_VaultSyncSection> createState() => _VaultSyncSectionState();
+}
+
+class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
+  bool _loading = true;
+  bool _enabled = false;
+  bool _autoPullEnabled = false;
+  bool _autoPushEnabled = false;
+  String? _remoteUrl;
+  String? _message;
+  bool _syncing = false;
+
+  String? _vaultRootPath;
+
+  Future<void> _load() async {
+    try {
+      final vaultState = ref.read(vaultControllerProvider).state;
+      if (vaultState is! VaultOpen) {
+        setState(() {
+          _vaultRootPath = null;
+          _loading = false;
+          _enabled = false;
+          _remoteUrl = null;
+          _message = null;
+        });
+        return;
+      }
+      final rootPath = vaultState.handle.root.path;
+      _vaultRootPath = rootPath;
+      final settings = ref.read(appSettingsProvider);
+      final enabled = await settings.readVaultSyncEnabled(rootPath);
+      final remoteUrl = await settings.readVaultSyncRemoteUrl(rootPath);
+      final autoPullEnabled = await settings.readVaultAutoPullEnabled(
+        rootPath,
+      );
+      final autoPushEnabled = await settings.readVaultAutoPushEnabled(
+        rootPath,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _loading = false;
+        _enabled = enabled;
+        _autoPullEnabled = autoPullEnabled;
+        _autoPushEnabled = autoPushEnabled;
+        _remoteUrl = remoteUrl;
+        _message = null;
+      });
+    } on StateError catch (_) {
+      // Many widget tests render the dashboard without a ProviderScope.
+      // In that case, we gracefully degrade the sync section.
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _vaultRootPath = null;
+        _loading = false;
+        _enabled = false;
+        _autoPullEnabled = false;
+        _autoPushEnabled = false;
+        _remoteUrl = null;
+        _message = null;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _VaultSyncSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // If vault root changed (switch vault), reload config.
+    try {
+      final vaultState = ref.read(vaultControllerProvider).state;
+      final rootPath =
+          vaultState is VaultOpen ? vaultState.handle.root.path : null;
+      if (rootPath != _vaultRootPath) {
+        _load();
+      }
+    } on StateError catch (_) {
+      // No ProviderScope; nothing to reload.
+    }
+  }
+
+  Future<void> _showEnableDialog() async {
+    final controller = TextEditingController(text: _remoteUrl ?? '');
+    String remoteUrlDraft = controller.text;
+    var autoPullDraft = _autoPullEnabled;
+    var autoPushDraft = _autoPushEnabled;
+    await showMacosAlertDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return MacosAlertDialog(
+              appIcon: const Icon(
+                LucideIcons.refreshCw,
+                color: Color(0xFF5DE7A7),
+                size: 40,
+              ),
+              title: const Text('启用 Git 同步'),
+              message: SizedBox(
+                width: 440,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      '为当前 Vault 绑定一个远程仓库。之后你在两台电脑上都打开同一个 Vault 并启用同步，就可以沉淀到同一份数据。',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF9BB4AB)),
+                    ),
+                    const SizedBox(height: 12),
+                    MacosTextField(
+                      controller: controller,
+                      placeholder:
+                          'https://github.com/.../repo.git 或 git@github.com:.../repo.git',
+                      onChanged: (v) {
+                        remoteUrlDraft = v;
+                        setStateDialog(() {});
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    PushButton(
+                      controlSize: ControlSize.large,
+                      secondary: !autoPullDraft,
+                      onPressed: () {
+                        autoPullDraft = !autoPullDraft;
+                        setStateDialog(() {});
+                      },
+                      child: Text(
+                        autoPullDraft ? '自动 pull：开启' : '自动 pull：关闭',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    PushButton(
+                      controlSize: ControlSize.large,
+                      secondary: !autoPushDraft,
+                      onPressed: () {
+                        autoPushDraft = !autoPushDraft;
+                        setStateDialog(() {});
+                      },
+                      child: Text(
+                        autoPushDraft ? '自动 push：开启' : '自动 push：关闭',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              primaryButton: PushButton(
+                controlSize: ControlSize.large,
+                onPressed: () async {
+                  final rootPath = _vaultRootPath;
+                  if (rootPath == null) {
+                    Navigator.of(dialogContext).pop();
+                    return;
+                  }
+                  final nav = Navigator.of(dialogContext);
+                  final remote = remoteUrlDraft.trim();
+                  await ref
+                      .read(appSettingsProvider)
+                      .writeVaultSyncConfig(
+                        vaultRootPath: rootPath,
+                        enabled: true,
+                        remoteUrl: remote,
+                      );
+                  await ref
+                      .read(appSettingsProvider)
+                      .writeVaultAutoPullEnabled(
+                        vaultRootPath: rootPath,
+                        enabled: autoPullDraft,
+                      );
+                  await ref
+                      .read(appSettingsProvider)
+                      .writeVaultAutoPushEnabled(
+                        vaultRootPath: rootPath,
+                        enabled: autoPushDraft,
+                      );
+                  if (!mounted) {
+                    return;
+                  }
+                  nav.pop();
+                },
+                child: const Text('启用并保存'),
+              ),
+              secondaryButton: PushButton(
+                controlSize: ControlSize.large,
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('取消'),
+              ),
+            );
+          },
+        );
+      },
+    );
+    await _load();
+  }
+
+  Future<void> _syncNow() async {
+    final rootPath = _vaultRootPath;
+    if (rootPath == null) {
+      return;
+    }
+    final remoteUrl = _remoteUrl;
+    if (remoteUrl == null || remoteUrl.trim().isEmpty) {
+      setState(() => _message = '未配置 remote URL。');
+      return;
+    }
+    setState(() {
+      _syncing = true;
+      _message = null;
+    });
+
+    final git = GitSyncService();
+    final vaultController = ref.read(vaultControllerProvider);
+    final result = await git.syncVault(
+      vaultRootPath: rootPath,
+      remoteUrl: remoteUrl,
+    );
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _syncing = false;
+      _message = switch (result.status) {
+        GitSyncStatus.success => '同步完成。',
+        GitSyncStatus.conflict =>
+          '同步冲突：${result.conflictFiles.isEmpty ? '请查看终端' : '受影响文件：${result.conflictFiles.take(3).join(', ')}'}',
+        GitSyncStatus.error => result.message ?? '同步失败。',
+        GitSyncStatus.notGitRepo => 'Vault 尚未初始化为 Git 仓库。',
+      };
+    });
+
+    if (result.status == GitSyncStatus.conflict) {
+      await _showConflictDialog(
+        vaultRootPath: rootPath,
+        conflictFiles: result.conflictFiles,
+      );
+      return;
+    }
+
+    if (result.status == GitSyncStatus.success) {
+      // Refresh indexes & recent cache.
+      await vaultController.refreshPaths(const <String>{});
+    }
+    if (mounted) {
+      // Clear banner after successful sync for a clean UX.
+      if (result.status == GitSyncStatus.success) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          setState(() => _message = null);
+        }
+      }
+    }
+  }
+
+  Future<void> _showConflictDialog({
+    required String vaultRootPath,
+    required List<String> conflictFiles,
+  }) async {
+    final command = 'cd "$vaultRootPath" && git status';
+
+    await showMacosAlertDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return MacosAlertDialog(
+          appIcon: const Icon(
+            LucideIcons.alertTriangle,
+            color: Color(0xFFE3B341),
+            size: 48,
+          ),
+          title: const Text('同步冲突'),
+          message: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  '请先在终端手动解决冲突后，再重试同步：',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF9BB4AB)),
+                ),
+                const SizedBox(height: 10),
+                if (conflictFiles.isNotEmpty) ...[
+                  const Text(
+                    '冲突文件（受影响）：',
+                    style: TextStyle(fontSize: 12, color: Color(0xFFBDD0C7)),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0C211A),
+                      border: Border.all(color: const Color(0xFF1B4D40)),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    height: 96,
+                    child: ListView.builder(
+                      itemCount:
+                          conflictFiles.length > 8 ? 8 : conflictFiles.length,
+                      itemBuilder: (context, index) {
+                        return Text(
+                          conflictFiles[index],
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFFE1F1EA),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+                const Text(
+                  '建议终端命令：',
+                  style: TextStyle(fontSize: 12, color: Color(0xFFBDD0C7)),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  command,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFE3F3EA),
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          primaryButton: PushButton(
+            controlSize: ControlSize.large,
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              unawaited(_syncNow());
+            },
+            child: const Text('重试同步'),
+          ),
+          secondaryButton: PushButton(
+            controlSize: ControlSize.large,
+            secondary: true,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('稍后再说'),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _disableSync() async {
+    final rootPath = _vaultRootPath;
+    if (rootPath == null) {
+      return;
+    }
+    await ref
+        .read(appSettingsProvider)
+        .writeVaultSyncConfig(vaultRootPath: rootPath, enabled: false);
+    await ref
+        .read(appSettingsProvider)
+        .writeVaultAutoPullEnabled(vaultRootPath: rootPath, enabled: false);
+    await ref
+        .read(appSettingsProvider)
+        .writeVaultAutoPushEnabled(vaultRootPath: rootPath, enabled: false);
+    await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8),
+        child: Text(
+          '加载同步配置…',
+          style: TextStyle(color: Color(0xFF9BB4AB), fontSize: 12),
+        ),
+      );
+    }
+
+    final enabled = _enabled && (_remoteUrl != null && _remoteUrl!.trim().isNotEmpty);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(LucideIcons.refreshCw, color: Color(0xFFBDD0C7), size: 16),
-        SizedBox(width: 8),
-        Text('立即同步', style: TextStyle(color: Color(0xFFE3F3EA), fontSize: 13)),
+        if (_vaultRootPath == null)
+          const Text(
+            '未打开 Vault',
+            style: TextStyle(color: Color(0xFF9BB4AB), fontSize: 12),
+          )
+        else if (!enabled)
+          WorkbenchButton(
+            size: WorkbenchButtonSize.sm,
+            variant: WorkbenchButtonVariant.outline,
+            semanticLabel: '启用 Git 同步',
+            onPressed: _showEnableDialog,
+            leading: const Icon(LucideIcons.refreshCw, size: 16),
+            child: const Text('启用 Git 同步'),
+          )
+        else
+          Row(
+            children: [
+              Expanded(
+                child: WorkbenchButton(
+                  size: WorkbenchButtonSize.sm,
+                  variant: WorkbenchButtonVariant.primary,
+                  semanticLabel: '立即同步',
+                  onPressed: _syncing ? null : _syncNow,
+                  leading: const Icon(LucideIcons.cloudUpload, size: 16),
+                  child: Text(_syncing ? '同步中…' : '立即同步'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              WorkbenchIconButton(
+                tooltip: '断开 Git 同步',
+                semanticLabel: '断开 Git 同步',
+                icon: const Icon(LucideIcons.xCircle, size: 18),
+                onPressed: _syncing ? null : _disableSync,
+              ),
+            ],
+          ),
+        if (_message != null) ...[
+          const SizedBox(height: 10),
+          Text(
+            _message!,
+            style: const TextStyle(color: Color(0xFFE3F3EA), fontSize: 12),
+          ),
+        ],
       ],
-    ),
-  );
+    );
+  }
 }
