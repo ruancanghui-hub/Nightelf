@@ -40,6 +40,23 @@ class LinkValidation {
     return LinkValidationResult.valid(normalized);
   }
 
+  /// http(s) pages stay inside the in-app WebView.
+  bool isInAppWebScheme(Uri uri) {
+    final scheme = uri.scheme.toLowerCase();
+    return scheme == 'http' || scheme == 'https';
+  }
+
+  /// WKWebView internal / unsafe schemes must not be forwarded to `open`.
+  bool shouldIgnoreExternalOpen(Uri uri) {
+    final scheme = uri.scheme.toLowerCase();
+    return scheme.isEmpty ||
+        scheme == 'about' ||
+        scheme == 'data' ||
+        scheme == 'blob' ||
+        scheme == 'file' ||
+        scheme == 'javascript';
+  }
+
   String _withScheme(String value) {
     if (RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*:').hasMatch(value)) {
       return value;

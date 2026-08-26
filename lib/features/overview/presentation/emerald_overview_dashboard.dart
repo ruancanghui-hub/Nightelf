@@ -913,6 +913,7 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
           WorkbenchButton(
             size: WorkbenchButtonSize.sm,
             variant: WorkbenchButtonVariant.outline,
+            expands: true,
             semanticLabel: '启用 Git 同步',
             onPressed: _showEnableDialog,
             leading: const Icon(LucideIcons.refreshCw, size: 16),
@@ -925,6 +926,7 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
                 child: WorkbenchButton(
                   size: WorkbenchButtonSize.sm,
                   variant: WorkbenchButtonVariant.primary,
+                  expands: true,
                   semanticLabel: '立即同步',
                   onPressed: _syncing ? null : _syncNow,
                   leading: const Icon(LucideIcons.cloudUpload, size: 16),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ai_workbench/features/links/domain/link_validation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -101,17 +103,15 @@ class _LinkInAppBrowserState extends State<LinkInAppBrowser> {
             if (uri == null) {
               return NavigationDecision.prevent;
             }
-            final scheme = uri.scheme.toLowerCase();
-            if (scheme == 'http' || scheme == 'https') {
+            if (_validation.isInAppWebScheme(uri)) {
               return NavigationDecision.navigate;
             }
-            // Keep Vault/filesystem channels unavailable to the WebView.
-            if (scheme == 'file' || scheme == 'javascript') {
+            if (_validation.shouldIgnoreExternalOpen(uri)) {
               return NavigationDecision.prevent;
             }
             final open = widget.onExternalScheme;
             if (open != null) {
-              open(uri);
+              open(uri).ignore();
             }
             return NavigationDecision.prevent;
           },

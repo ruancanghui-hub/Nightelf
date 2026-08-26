@@ -4,6 +4,42 @@ enum WorkflowNodeShape { rectangle, rounded, diamond, plain }
 
 enum WorkflowEdgeStyle { solid, dotted, line }
 
+enum WorkflowComponentNodeType { process, prompt, skill, mcp, link }
+
+extension WorkflowComponentNodeTypeLabel on WorkflowComponentNodeType {
+  String get idPrefix => switch (this) {
+    WorkflowComponentNodeType.process => 'node',
+    WorkflowComponentNodeType.prompt => 'prompt',
+    WorkflowComponentNodeType.skill => 'skill',
+    WorkflowComponentNodeType.mcp => 'mcp',
+    WorkflowComponentNodeType.link => 'link',
+  };
+
+  String get label => switch (this) {
+    WorkflowComponentNodeType.process => '流程节点',
+    WorkflowComponentNodeType.prompt => 'AI 提示词',
+    WorkflowComponentNodeType.skill => 'SKILL',
+    WorkflowComponentNodeType.mcp => 'MCP',
+    WorkflowComponentNodeType.link => '网站链接',
+  };
+
+  String get toolbarLabel => switch (this) {
+    WorkflowComponentNodeType.process => '流程',
+    WorkflowComponentNodeType.prompt => 'Prompt',
+    WorkflowComponentNodeType.skill => 'SKILL',
+    WorkflowComponentNodeType.mcp => 'MCP',
+    WorkflowComponentNodeType.link => '链接',
+  };
+
+  WorkflowNodeShape get shape => switch (this) {
+    WorkflowComponentNodeType.process => WorkflowNodeShape.rectangle,
+    WorkflowComponentNodeType.prompt => WorkflowNodeShape.rounded,
+    WorkflowComponentNodeType.skill => WorkflowNodeShape.rectangle,
+    WorkflowComponentNodeType.mcp => WorkflowNodeShape.diamond,
+    WorkflowComponentNodeType.link => WorkflowNodeShape.rounded,
+  };
+}
+
 class WorkflowNode {
   const WorkflowNode({
     required this.id,

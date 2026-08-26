@@ -29,10 +29,7 @@ class WorkflowWorkspace extends StatelessWidget {
         if (controller.document == null) {
           return fallback ?? const _MockWorkflowSurface();
         }
-        return _WorkflowEditor(
-          controller: controller,
-          onRenamed: onRenamed,
-        );
+        return _WorkflowEditor(controller: controller, onRenamed: onRenamed);
       },
     );
   }
@@ -230,7 +227,11 @@ class _WorkflowEditorState extends State<_WorkflowEditor> {
           const SizedBox(height: 12),
           Expanded(
             child: controller.mode == WorkflowViewMode.canvas
-                ? WorkflowCanvas(controller: controller.canvasController)
+                ? WorkflowCanvas(
+                    controller: controller.canvasController,
+                    onAddComponentNode: (type, position) =>
+                        controller.addComponentNode(type, position: position),
+                  )
                 : MacosTextField(
                     controller: _sourceController,
                     maxLines: null,

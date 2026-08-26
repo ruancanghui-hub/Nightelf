@@ -46,4 +46,43 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Primary'), findsOneWidget);
   });
+
+  testWidgets('button label shrinks instead of overflowing a tight width', (
+    tester,
+  ) async {
+    FlutterErrorDetails? overflow;
+    final previous = FlutterError.onError;
+    FlutterError.onError = (details) {
+      if (details.toString().contains('overflowed')) {
+        overflow = details;
+      }
+      previous?.call(details);
+    };
+    addTearDown(() => FlutterError.onError = previous);
+
+    await tester.pumpWidget(
+      MacosApp(
+        theme: MacosThemeData.dark(),
+        home: WorkbenchShadScope(
+          child: MacosWindow(
+            child: Center(
+              child: SizedBox(
+                width: 192,
+                height: 36,
+                child: WorkbenchButton(
+                  size: WorkbenchButtonSize.sm,
+                  expands: true,
+                  onPressed: () {},
+                  child: const Text('启用 Git 同步并且再加一些会撑破按钮的长文字'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(overflow, isNull);
+    expect(tester.takeException(), isNull);
+  });
 }

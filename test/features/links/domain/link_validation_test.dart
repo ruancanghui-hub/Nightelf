@@ -21,4 +21,24 @@ void main() {
     expect(result.isValid, isTrue);
     expect(result.uri.toString(), 'https://example.com/path');
   });
+
+  test('classifies in-app and ignored WebView schemes', () {
+    expect(
+      validation.isInAppWebScheme(Uri.parse('https://example.com')),
+      isTrue,
+    );
+    expect(
+      validation.shouldIgnoreExternalOpen(Uri.parse('about:blank')),
+      isTrue,
+    );
+    expect(validation.shouldIgnoreExternalOpen(Uri.parse('about:srcdoc')), isTrue);
+    expect(
+      validation.shouldIgnoreExternalOpen(Uri.parse('data:text/html,hi')),
+      isTrue,
+    );
+    expect(
+      validation.shouldIgnoreExternalOpen(Uri.parse('mailto:a@b.com')),
+      isFalse,
+    );
+  });
 }

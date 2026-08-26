@@ -11,6 +11,7 @@ import 'package:ai_workbench/features/workflows/data/workflow_repository.dart';
 import 'package:ai_workbench/features/workflows/domain/workflow_diagnostic.dart';
 import 'package:ai_workbench/features/workflows/domain/workflow_document.dart';
 import 'package:ai_workbench/features/workflows/domain/workflow_graph.dart';
+import 'package:ai_workbench/features/workflows/domain/workflow_layout.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
@@ -190,6 +191,43 @@ class WorkflowController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<WorkflowNode> addComponentNode(
+    WorkflowComponentNodeType type, {
+    CanvasPoint? position,
+  }) async {
+    final document = _requireDocument();
+    final session = _session;
+    if (session == null) {
+      throw StateError('尚未打开 Workflow');
+    }
+    if (!document.supportsCanvas) {
+      throw StateError('当前 Workflow 文件类型不支持画布组件');
+    }
+
+    final node = WorkflowNode(
+      id: _nextComponentNodeId(type),
+      label: type.label,
+      shape: type.shape,
+    );
+    session.updateText(_appendMermaidNode(source, node));
+    _cancelParseTimer();
+    _parseSourceNow(persistLayout: false);
+
+    final graph = _lastValidGraph;
+    if (graph != null) {
+      await canvasController.loadGraph(workflowId: document.id, graph: graph);
+      if (position != null) {
+        canvasController.setNodePosition(node.id, position);
+      }
+      canvasController.selectNodes({node.id});
+      await canvasController.persist();
+    }
+
+    _statusMessage = '已添加${type.label}节点';
+    notifyListeners();
+    return node;
+  }
+
   Future<String> moveToTrash() async {
     final document = _requireDocument();
     if (_session?.state.isDirty ?? false) {
@@ -304,6 +342,57 @@ class WorkflowController extends ChangeNotifier {
       }
     }
     return blocks;
+  }
+
+  String _nextComponentNodeId(WorkflowComponentNodeType type) {
+    final existing = {
+      for (final node in _lastValidGraph?.nodes ?? const <WorkflowNode>[])
+        node.id,
+    };
+    var index = 1;
+    while (existing.contains('${type.idPrefix}_$index') ||
+        source.contains(
+          RegExp('\\b${RegExp.escape(type.idPrefix)}_$index\\b'),
+        )) {
+      index += 1;
+    }
+    return '${type.idPrefix}_$index';
+  }
+
+  String _appendMermaidNode(String text, WorkflowNode node) {
+    final declaration = _mermaidNodeDeclaration(node);
+    final needsHeader = !_hasFlowchartHeader(text);
+    final buffer = StringBuffer(text);
+    if (text.isNotEmpty && !text.endsWith('\n')) {
+      buffer.writeln();
+    }
+    if (needsHeader) {
+      buffer.writeln('flowchart TD');
+    }
+    buffer.writeln(declaration);
+    return buffer.toString();
+  }
+
+  bool _hasFlowchartHeader(String text) {
+    final body = _bodyOnly(text).trimLeft();
+    return RegExp(
+      r'^(?:flowchart|graph)\s+(?:TD|TB|BT|LR|RL)\b',
+      caseSensitive: false,
+    ).hasMatch(body);
+  }
+
+  String _mermaidNodeDeclaration(WorkflowNode node) {
+    final label = node.label
+        .replaceAll('[', '(')
+        .replaceAll(']', ')')
+        .replaceAll('{', '(')
+        .replaceAll('}', ')');
+    return switch (node.shape) {
+      WorkflowNodeShape.rectangle => '${node.id}[$label]',
+      WorkflowNodeShape.rounded => '${node.id}($label)',
+      WorkflowNodeShape.diamond => '${node.id}{$label}',
+      WorkflowNodeShape.plain => node.id,
+    };
   }
 
   WorkflowDocument _requireDocument() {

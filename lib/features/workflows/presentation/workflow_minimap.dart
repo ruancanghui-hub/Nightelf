@@ -66,11 +66,17 @@ class _MinimapPainter extends CustomPainter {
     var maxX = double.negativeInfinity;
     var maxY = double.negativeInfinity;
     for (final node in graph.nodes) {
-      final point = layout.positions[node.id]!;
+      final point = layout.positions[node.id];
+      if (point == null) {
+        continue;
+      }
       minX = minX < point.x ? minX : point.x;
       minY = minY < point.y ? minY : point.y;
       maxX = maxX > point.x + nodeWidth ? maxX : point.x + nodeWidth;
       maxY = maxY > point.y + nodeHeight ? maxY : point.y + nodeHeight;
+    }
+    if (!minX.isFinite) {
+      return;
     }
     final worldW = (maxX - minX).clamp(1, double.infinity);
     final worldH = (maxY - minY).clamp(1, double.infinity);
@@ -79,7 +85,10 @@ class _MinimapPainter extends CustomPainter {
         : size.height / worldH;
     final paint = Paint()..color = const Color(0xFF2F6FED);
     for (final node in graph.nodes) {
-      final point = layout.positions[node.id]!;
+      final point = layout.positions[node.id];
+      if (point == null) {
+        continue;
+      }
       canvas.drawRect(
         Rect.fromLTWH(
           (point.x - minX) * scale,

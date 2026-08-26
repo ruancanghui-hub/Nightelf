@@ -104,4 +104,14 @@ void main() {
     expect(controller.isFloatingBubble, isFalse);
     expect(bubbles.dismissed, contains(controller.document!.id));
   });
+
+  test('ignores about:blank instead of opening it externally', () async {
+    await controller.create(
+      title: '示例',
+      url: 'https://example.com',
+    );
+    await controller.openExternalUri(Uri.parse('about:blank'));
+    expect(systemOpen.openedUrls, isEmpty);
+    expect(controller.errorMessage, isNull);
+  });
 }

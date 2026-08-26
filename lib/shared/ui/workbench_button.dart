@@ -53,16 +53,20 @@ class WorkbenchButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEnabled = enabled ?? onPressed != null;
-    final button = ShadButton.raw(
-      variant: _shadVariant,
-      size: _shadSize,
-      onPressed: onPressed,
-      leading: leading,
-      trailing: trailing,
-      expands: expands,
-      enabled: isEnabled,
-      child: child,
-    );
+    final button = expands
+        ? _buildButton(isEnabled: isEnabled, shouldExpand: true)
+        : LayoutBuilder(
+            builder: (context, constraints) {
+              final squeezed =
+                  constraints.hasBoundedWidth &&
+                  constraints.maxWidth.isFinite &&
+                  constraints.minWidth >= constraints.maxWidth - 0.5;
+              return _buildButton(
+                isEnabled: isEnabled,
+                shouldExpand: squeezed,
+              );
+            },
+          );
     if (semanticLabel == null) {
       return button;
     }
@@ -73,6 +77,26 @@ class WorkbenchButton extends StatelessWidget {
       container: true,
       excludeSemantics: true,
       child: button,
+    );
+  }
+
+  Widget _buildButton({
+    required bool isEnabled,
+    required bool shouldExpand,
+  }) {
+    return ShadButton.raw(
+      variant: _shadVariant,
+      size: _shadSize,
+      onPressed: onPressed,
+      leading: leading,
+      trailing: trailing,
+      expands: shouldExpand,
+      enabled: isEnabled,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: shouldExpand ? Alignment.centerLeft : Alignment.center,
+        child: child,
+      ),
     );
   }
 }

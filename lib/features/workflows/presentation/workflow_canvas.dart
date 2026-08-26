@@ -1,4 +1,5 @@
 import 'package:ai_workbench/features/workflows/application/workflow_canvas_controller.dart';
+import 'package:ai_workbench/features/workflows/domain/workflow_graph.dart';
 import 'package:ai_workbench/features/workflows/domain/workflow_layout.dart';
 import 'package:ai_workbench/features/workflows/presentation/workflow_edge_painter.dart';
 import 'package:ai_workbench/features/workflows/presentation/workflow_minimap.dart';
@@ -7,9 +8,18 @@ import 'package:flutter/widgets.dart';
 import 'package:macos_ui/macos_ui.dart';
 
 class WorkflowCanvas extends StatefulWidget {
-  const WorkflowCanvas({super.key, required this.controller});
+  const WorkflowCanvas({
+    super.key,
+    required this.controller,
+    this.onAddComponentNode,
+  });
 
   final WorkflowCanvasController controller;
+  final Future<void> Function(
+    WorkflowComponentNodeType type,
+    CanvasPoint position,
+  )?
+  onAddComponentNode;
 
   @override
   State<WorkflowCanvas> createState() => _WorkflowCanvasState();
@@ -87,104 +97,129 @@ class _WorkflowCanvasState extends State<WorkflowCanvas> {
           children: [
             _CanvasToolbar(controller: widget.controller),
             Expanded(
-              child: Stack(
-                children: [
-                  GestureDetector(
-                    onTap: widget.controller.clearSelection,
-                    onPanStart: (details) {
-                      _marqueeStart = details.localPosition;
-                      _marqueeEnd = details.localPosition;
-                      setState(() {});
-                    },
-                    onPanUpdate: (details) {
-                      _marqueeEnd = details.localPosition;
-                      setState(() {});
-                    },
-                    onPanEnd: (_) {
-                      _applyMarquee(layout);
-                      _marqueeStart = null;
-                      _marqueeEnd = null;
-                      setState(() {});
-                    },
-                    child: InteractiveViewer(
-                      constrained: false,
-                      minScale: 0.15,
-                      maxScale: 4,
-                      boundaryMargin: const EdgeInsets.all(100000),
-                      transformationController: _transform,
-                      onInteractionEnd: (_) {
-                        _persistViewport();
-                        widget.controller.persist();
-                      },
-                      child: SizedBox(
-                        width: 4000,
-                        height: 3000,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            CustomPaint(
-                              size: const Size(4000, 3000),
-                              painter: WorkflowEdgePainter(
-                                graph: graph,
-                                layout: layout,
-                                nodeWidth: widget.controller.nodeWidth,
-                                nodeHeight: widget.controller.nodeHeight,
-                              ),
-                            ),
-                            for (final node in graph.nodes)
-                              Positioned(
-                                left: layout.positions[node.id]!.x,
-                                top: layout.positions[node.id]!.y,
-                                child: WorkflowNodeCard(
-                                  node: node,
-                                  selected: widget.controller.selectedNodeIds
-                                      .contains(node.id),
-                                  width: widget.controller.nodeWidth,
-                                  height: widget.controller.nodeHeight,
-                                  onSelect: () =>
-                                      widget.controller.selectNodes({node.id}),
-                                  onDrag: widget.controller.locked
-                                      ? null
-                                      : (delta) {
-                                          final scale = widget.controller.scale
-                                              .clamp(0.15, 4.0);
-                                          widget.controller.moveNode(
-                                            node.id,
-                                            delta.dx / scale,
-                                            delta.dy / scale,
-                                          );
-                                        },
-                                  onDragEnd: () => widget.controller.persist(),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final viewportSize = Size(
+                    constraints.maxWidth,
+                    constraints.maxHeight,
+                  );
+                  return Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: widget.controller.clearSelection,
+                        onPanStart: (details) {
+                          _marqueeStart = details.localPosition;
+                          _marqueeEnd = details.localPosition;
+                          setState(() {});
+                        },
+                        onPanUpdate: (details) {
+                          _marqueeEnd = details.localPosition;
+                          setState(() {});
+                        },
+                        onPanEnd: (_) {
+                          _applyMarquee(layout);
+                          _marqueeStart = null;
+                          _marqueeEnd = null;
+                          setState(() {});
+                        },
+                        child: InteractiveViewer(
+                          constrained: false,
+                          minScale: 0.15,
+                          maxScale: 4,
+                          boundaryMargin: const EdgeInsets.all(100000),
+                          transformationController: _transform,
+                          onInteractionEnd: (_) {
+                            _persistViewport();
+                            widget.controller.persist();
+                          },
+                          child: SizedBox(
+                            width: 4000,
+                            height: 3000,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                CustomPaint(
+                                  size: const Size(4000, 3000),
+                                  painter: WorkflowEdgePainter(
+                                    graph: graph,
+                                    layout: layout,
+                                    nodeWidth: widget.controller.nodeWidth,
+                                    nodeHeight: widget.controller.nodeHeight,
+                                  ),
                                 ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (_marqueeStart != null && _marqueeEnd != null)
-                    Positioned.fromRect(
-                      rect: Rect.fromPoints(_marqueeStart!, _marqueeEnd!),
-                      child: IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: const Color(0x332F6FED),
-                            border: Border.all(color: const Color(0xFF2F6FED)),
+                                for (final node in graph.nodes)
+                                  if (layout.positions[node.id] != null)
+                                    Positioned(
+                                      left: layout.positions[node.id]!.x,
+                                      top: layout.positions[node.id]!.y,
+                                      child: WorkflowNodeCard(
+                                        node: node,
+                                        selected: widget
+                                            .controller
+                                            .selectedNodeIds
+                                            .contains(node.id),
+                                        width: widget.controller.nodeWidth,
+                                        height: widget.controller.nodeHeight,
+                                        onSelect: () => widget.controller
+                                            .selectNodes({node.id}),
+                                        onDrag: widget.controller.locked
+                                            ? null
+                                            : (delta) {
+                                                final scale = widget
+                                                    .controller
+                                                    .scale
+                                                    .clamp(0.15, 4.0);
+                                                widget.controller.moveNode(
+                                                  node.id,
+                                                  delta.dx / scale,
+                                                  delta.dy / scale,
+                                                );
+                                              },
+                                        onDragEnd: () =>
+                                            widget.controller.persist(),
+                                      ),
+                                    ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  Positioned(
-                    right: 12,
-                    bottom: 12,
-                    child: WorkflowMinimap(
-                      graph: graph,
-                      layout: layout,
-                      nodeWidth: widget.controller.nodeWidth,
-                      nodeHeight: widget.controller.nodeHeight,
-                    ),
-                  ),
-                ],
+                      if (widget.onAddComponentNode != null)
+                        Positioned(
+                          left: 12,
+                          top: 12,
+                          child: _ComponentLibrary(
+                            onAdd: (type) =>
+                                _addComponentNode(type, viewportSize),
+                          ),
+                        ),
+                      if (_marqueeStart != null && _marqueeEnd != null)
+                        Positioned.fromRect(
+                          rect: Rect.fromPoints(_marqueeStart!, _marqueeEnd!),
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: const Color(0x332F6FED),
+                                border: Border.all(
+                                  color: const Color(0xFF2F6FED),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      Positioned(
+                        right: 12,
+                        bottom: 12,
+                        child: WorkflowMinimap(
+                          graph: graph,
+                          layout: layout,
+                          nodeWidth: widget.controller.nodeWidth,
+                          nodeHeight: widget.controller.nodeHeight,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -215,6 +250,61 @@ class _WorkflowCanvasState extends State<WorkflowCanvas> {
       }
     }
     widget.controller.selectNodes(selected);
+  }
+
+  Future<void> _addComponentNode(
+    WorkflowComponentNodeType type,
+    Size viewportSize,
+  ) async {
+    final scene = _transform.toScene(
+      Offset(viewportSize.width / 2, viewportSize.height / 2),
+    );
+    await widget.onAddComponentNode?.call(
+      type,
+      CanvasPoint(scene.dx, scene.dy),
+    );
+  }
+}
+
+class _ComponentLibrary extends StatelessWidget {
+  const _ComponentLibrary({required this.onAdd});
+
+  final Future<void> Function(WorkflowComponentNodeType type) onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: MacosTheme.of(context).canvasColor.withValues(alpha: 0.94),
+        border: Border.all(color: MacosTheme.of(context).dividerColor),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('组件', style: MacosTheme.of(context).typography.caption1),
+            for (final type in WorkflowComponentNodeType.values)
+              PushButton(
+                controlSize: ControlSize.small,
+                semanticLabel: '添加${type.label}节点',
+                onPressed: () => onAdd(type),
+                child: Text(type.toolbarLabel),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

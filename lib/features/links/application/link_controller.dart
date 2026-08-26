@@ -230,6 +230,9 @@ class LinkController extends ChangeNotifier {
   }
 
   Future<void> openExternalUri(Uri uri) async {
+    if (_validation.shouldIgnoreExternalOpen(uri)) {
+      return;
+    }
     await _systemOpen.openExternalUrl(uri);
     _statusMessage = '已打开外部应用链接';
     notifyListeners();

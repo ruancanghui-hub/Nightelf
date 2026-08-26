@@ -33,10 +33,12 @@ class WorkflowCanvasController extends ChangeNotifier {
     required String workflowId,
     required WorkflowGraph graph,
   }) async {
-    _graph = graph;
+    // Load stored layout before publishing `_graph`, otherwise a rebuild can
+    // pair a new graph with a stale positions map and crash the canvas.
     final stored = await _layoutRepository.load(workflowId);
     final positions = Map<String, CanvasPoint>.from(stored?.positions ?? {});
     _pruneAndFillPositions(positions, graph);
+    _graph = graph;
     _layout = WorkflowLayout(
       workflowId: workflowId,
       positions: positions,
@@ -65,6 +67,17 @@ class WorkflowCanvasController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setNodePosition(String nodeId, CanvasPoint position) {
+    final layout = _layout;
+    if (layout == null || !layout.positions.containsKey(nodeId)) {
+      return;
+    }
+    _layout = layout.copyWith(
+      positions: {...layout.positions, nodeId: position},
+    );
+    notifyListeners();
+  }
+
   void setViewport(WorkflowViewport viewport) {
     final layout = _layout;
     if (layout == null) {
@@ -85,11 +98,17 @@ class WorkflowCanvasController extends ChangeNotifier {
     var maxX = double.negativeInfinity;
     var maxY = double.negativeInfinity;
     for (final node in graph.nodes) {
-      final point = layout.positions[node.id]!;
+      final point = layout.positions[node.id];
+      if (point == null) {
+        continue;
+      }
       minX = minX < point.x ? minX : point.x;
       minY = minY < point.y ? minY : point.y;
       maxX = maxX > point.x + nodeWidth ? maxX : point.x + nodeWidth;
       maxY = maxY > point.y + nodeHeight ? maxY : point.y + nodeHeight;
+    }
+    if (!minX.isFinite) {
+      return;
     }
     final width = (maxX - minX) + padding * 2;
     final height = (maxY - minY) + padding * 2;
