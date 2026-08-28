@@ -55,7 +55,182 @@ class GitSyncService {
       return '当前应用启用了 macOS App Sandbox，系统禁止在沙盒内运行 git/xcrun。\n'
           '解决：关闭 App Sandbox（调试构建）或使用非沙盒的辅助进程来执行同步。';
     }
+    if (_looksLikeRebaseLock(text)) {
+      return '本地 Git 卡在未完成的 rebase。Nightelf 会自动中止并重试同步。';
+    }
     return text;
+  }
+
+  bool _looksLikeRebaseLock(String text) {
+    final lower = text.toLowerCase();
+    return lower.contains('rebase-merge') ||
+        lower.contains('rebase-apply') ||
+        lower.contains('you are in the middle of another rebase') ||
+        lower.contains('in the middle of a rebase') ||
+        (lower.contains('rebase') && lower.contains('in progress'));
+  }
+
+  Future<bool> _isRebaseInProgress(String repoPath) async {
+    final rebaseMerge = Directory('$repoPath/.git/rebase-merge');
+    final rebaseApply = Directory('$repoPath/.git/rebase-apply');
+    if (await rebaseMerge.exists() || await rebaseApply.exists()) {
+      return true;
+    }
+    final status = await _run(
+      args: ['status'],
+      workingDirectory: repoPath,
+      allowNonZeroExit: true,
+    );
+    return _looksLikeRebaseLock('${status.stdout}\n${status.stderr}');
+  }
+
+  Future<void> _abortRebase(String repoPath) async {
+    await _run(
+      args: ['rebase', '--abort'],
+      workingDirectory: repoPath,
+      allowNonZeroExit: true,
+    );
+    // Stale lock dirs can remain if abort itself failed.
+    for (final name in const ['rebase-merge', 'rebase-apply']) {
+      final dir = Directory('$repoPath/.git/$name');
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+      }
+    }
+  }
+
+  /// Clears an interrupted/stale rebase so the next pull can start.
+  Future<void> _ensureNoInterruptedRebase(String repoPath) async {
+    if (await _isRebaseInProgress(repoPath)) {
+      await _abortRebase(repoPath);
+    }
+  }
+
+  /// Pull with recovery: abort stuck rebase, try rebase, then fall back to merge.
+  Future<GitSyncResult> _pullWithRecovery({
+    required String repoPath,
+    required String branch,
+    required void Function(String resolvedBranch) onBranchResolved,
+    bool allowEmptyRemote = false,
+  }) async {
+    await _ensureNoInterruptedRebase(repoPath);
+
+    Future<({int exitCode, String stdout, String stderr})> runPull({
+      required String tryBranch,
+      required bool rebase,
+    }) async {
+      final pull = await _run(
+        args: [
+          'pull',
+          if (rebase) '--rebase' else '--no-rebase',
+          'origin',
+          tryBranch,
+        ],
+        workingDirectory: repoPath,
+        allowNonZeroExit: true,
+      );
+      return (exitCode: pull.exitCode, stdout: pull.stdout, stderr: pull.stderr);
+    }
+
+    Future<GitSyncResult?> tryResolveMissingBranch(
+      String tryBranch,
+      String stderr,
+      String stdout,
+    ) async {
+      if (!_looksLikeMissingRemoteRef(stderr) &&
+          !_looksLikeEmptyRemote(stderr, stdout)) {
+        return null;
+      }
+      final resolved = await _resolveRemoteDefaultBranch(
+        repoPath: repoPath,
+        remoteName: 'origin',
+      );
+      if (resolved != null && resolved != tryBranch) {
+        return _pullWithRecovery(
+          repoPath: repoPath,
+          branch: resolved,
+          onBranchResolved: onBranchResolved,
+          allowEmptyRemote: allowEmptyRemote,
+        );
+      }
+      if (allowEmptyRemote) {
+        onBranchResolved(tryBranch);
+        return GitSyncResult(status: GitSyncStatus.success);
+      }
+      return null;
+    }
+
+    var tryBranch = branch;
+    var pull = await runPull(tryBranch: tryBranch, rebase: true);
+
+    if (pull.exitCode == 0) {
+      onBranchResolved(tryBranch);
+      return GitSyncResult(status: GitSyncStatus.success);
+    }
+
+    final missing = await tryResolveMissingBranch(
+      tryBranch,
+      pull.stderr,
+      pull.stdout,
+    );
+    if (missing != null) {
+      return missing;
+    }
+
+    // Stuck rebase lock from a previous attempt: abort and retry once.
+    if (_looksLikeRebaseLock('${pull.stderr}\n${pull.stdout}') ||
+        await _isRebaseInProgress(repoPath)) {
+      await _abortRebase(repoPath);
+      pull = await runPull(tryBranch: tryBranch, rebase: true);
+      if (pull.exitCode == 0) {
+        onBranchResolved(tryBranch);
+        return GitSyncResult(status: GitSyncStatus.success);
+      }
+      final missingAfterAbort = await tryResolveMissingBranch(
+        tryBranch,
+        pull.stderr,
+        pull.stdout,
+      );
+      if (missingAfterAbort != null) {
+        return missingAfterAbort;
+      }
+    }
+
+    // Rebase couldn't complete cleanly — abort and try a merge pull.
+    if (await _isRebaseInProgress(repoPath)) {
+      await _abortRebase(repoPath);
+    }
+    final merge = await runPull(tryBranch: tryBranch, rebase: false);
+    if (merge.exitCode == 0) {
+      onBranchResolved(tryBranch);
+      return GitSyncResult(status: GitSyncStatus.success);
+    }
+
+    final missingMerge = await tryResolveMissingBranch(
+      tryBranch,
+      merge.stderr,
+      merge.stdout,
+    );
+    if (missingMerge != null) {
+      return missingMerge;
+    }
+
+    final conflicts = await _listConflicts(repoPath);
+    if (conflicts.isNotEmpty) {
+      return GitSyncResult(
+        status: GitSyncStatus.conflict,
+        message: '拉取后存在冲突，需要手动解决后重试同步。',
+        conflictFiles: conflicts,
+      );
+    }
+
+    final detail = merge.stderr.trim().isEmpty ? merge.stdout : merge.stderr;
+    final rebaseDetail = pull.stderr.trim().isEmpty ? pull.stdout : pull.stderr;
+    return GitSyncResult(
+      status: GitSyncStatus.error,
+      message:
+          'pull 失败：${_humanizeGitError(detail.trim().isEmpty ? rebaseDetail : detail)}',
+    );
   }
 
   Future<String?> _resolveRemoteDefaultBranch({
@@ -327,47 +502,13 @@ class GitSyncService {
       }
     }
 
-    // pull
-    Future<GitSyncResult> attemptPull(String tryBranch) async {
-      final pull = await _run(
-        args: ['pull', '--rebase', 'origin', tryBranch],
-        workingDirectory: repoDir.path,
-        allowNonZeroExit: true,
-      );
-
-      if (pull.exitCode == 0) {
-        return GitSyncResult(status: GitSyncStatus.success);
-      }
-
-      // If the configured branch doesn't exist on remote, auto-resolve.
-      if (_looksLikeMissingRemoteRef(pull.stderr)) {
-        final resolved = await _resolveRemoteDefaultBranch(
-          repoPath: repoDir.path,
-          remoteName: 'origin',
-        );
-        if (resolved != null && resolved != tryBranch) {
-          return attemptPull(resolved);
-        }
-      }
-
-      final conflicts = await _listConflicts(repoDir.path);
-      if (conflicts.isNotEmpty) {
-        return GitSyncResult(
-          status: GitSyncStatus.conflict,
-          message: 'pull 存在冲突，需要手动解决。',
-          conflictFiles: conflicts,
-        );
-      }
-
-      return GitSyncResult(
-        status: GitSyncStatus.error,
-        message:
-            'pull 失败：${_humanizeGitError(pull.stderr.trim().isEmpty ? pull.stdout : pull.stderr)}',
-      );
-    }
-
-    final result = await attemptPull(branch);
-    return result;
+    // pull (with stuck-rebase recovery + merge fallback)
+    return _pullWithRecovery(
+      repoPath: repoDir.path,
+      branch: branch,
+      onBranchResolved: (_) {},
+      allowEmptyRemote: false,
+    );
   }
 
   /// Push-only sync (auto push).
@@ -548,51 +689,14 @@ class GitSyncService {
       allowNonZeroExit: true,
     );
 
-    // 4) pull --rebase
+    // 4) pull with stuck-rebase recovery + merge fallback
     var branchForPush = branch;
-    Future<GitSyncResult> doPull(String tryBranch) async {
-      final pull = await _run(
-        args: ['pull', '--rebase', 'origin', tryBranch],
-        workingDirectory: repoDir.path,
-        allowNonZeroExit: true,
-      );
-
-      if (pull.exitCode == 0) {
-        branchForPush = tryBranch;
-        return GitSyncResult(status: GitSyncStatus.success);
-      }
-
-      // Empty remote / no branch yet: skip pull and continue to first push.
-      if (_looksLikeMissingRemoteRef(pull.stderr) ||
-          _looksLikeEmptyRemote(pull.stderr, pull.stdout)) {
-        final resolved = await _resolveRemoteDefaultBranch(
-          repoPath: repoDir.path,
-          remoteName: 'origin',
-        );
-        if (resolved != null && resolved != tryBranch) {
-          return doPull(resolved);
-        }
-        branchForPush = tryBranch;
-        return GitSyncResult(status: GitSyncStatus.success);
-      }
-
-      final conflicts = await _listConflicts(repoDir.path);
-      if (conflicts.isNotEmpty) {
-        return GitSyncResult(
-          status: GitSyncStatus.conflict,
-          message: 'pull 存在冲突，需要手动解决。',
-          conflictFiles: conflicts,
-        );
-      }
-
-      return GitSyncResult(
-        status: GitSyncStatus.error,
-        message:
-            'pull 失败：${_humanizeGitError(pull.stderr.trim().isEmpty ? pull.stdout : pull.stderr)}',
-      );
-    }
-
-    final pullResult = await doPull(branch);
+    final pullResult = await _pullWithRecovery(
+      repoPath: repoDir.path,
+      branch: branch,
+      onBranchResolved: (resolved) => branchForPush = resolved,
+      allowEmptyRemote: true,
+    );
     if (pullResult.status != GitSyncStatus.success) {
       return pullResult;
     }

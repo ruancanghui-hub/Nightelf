@@ -361,11 +361,15 @@ class EmeraldOverviewDashboard extends StatelessWidget {
     ], height: 249);
   }
 
-  Widget _syncCard() => _statusCard('同步状态', [
-    _StatRow(LucideIcons.cloud, 'Git 同步', '—'),
-    const SizedBox(height: 8),
-    _VaultSyncSection(),
-  ], height: 214);
+  Widget _syncCard() => _statusCard(
+    '同步状态',
+    [
+      _StatRow(LucideIcons.cloud, 'Git 同步', '—'),
+      const SizedBox(height: 8),
+      const Expanded(child: _VaultSyncSection()),
+    ],
+    height: 214,
+  );
 
   Widget _statusCard(
     String title,
@@ -746,8 +750,8 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
       _message = switch (result.status) {
         GitSyncStatus.success => '同步完成。',
         GitSyncStatus.conflict =>
-          '同步冲突：${result.conflictFiles.isEmpty ? '请查看终端' : '受影响文件：${result.conflictFiles.take(3).join(', ')}'}',
-        GitSyncStatus.error => result.message ?? '同步失败。',
+          '同步冲突：${result.conflictFiles.isEmpty ? '请查看详情' : '受影响文件：${result.conflictFiles.take(3).join(', ')}'}',
+        GitSyncStatus.error => _shortSyncMessage(result.message ?? '同步失败。'),
         GitSyncStatus.notGitRepo => 'Vault 尚未初始化为 Git 仓库。',
       };
     });
@@ -756,6 +760,13 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
       await _showConflictDialog(
         vaultRootPath: rootPath,
         conflictFiles: result.conflictFiles,
+      );
+      return;
+    }
+
+    if (result.status == GitSyncStatus.error) {
+      await _showSyncErrorDialog(
+        message: result.message ?? '同步失败。',
       );
       return;
     }
@@ -773,6 +784,59 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
         }
       }
     }
+  }
+
+  String _shortSyncMessage(String message) {
+    final firstLine = message
+        .split('\n')
+        .map((line) => line.trim())
+        .firstWhere((line) => line.isNotEmpty, orElse: () => '同步失败。');
+    if (firstLine.length <= 48) {
+      return firstLine;
+    }
+    return '${firstLine.substring(0, 45)}…';
+  }
+
+  Future<void> _showSyncErrorDialog({
+    required String message,
+  }) async {
+    await showMacosAlertDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return MacosAlertDialog(
+          appIcon: const Icon(
+            LucideIcons.circleAlert,
+            color: Color(0xFFE35D6A),
+            size: 48,
+          ),
+          title: const Text('同步失败'),
+          message: SizedBox(
+            width: 520,
+            height: 220,
+            child: SingleChildScrollView(
+              child: Text(
+                message,
+                style: const TextStyle(fontSize: 12, color: Color(0xFFBDD0C7)),
+              ),
+            ),
+          ),
+          primaryButton: PushButton(
+            controlSize: ControlSize.large,
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              unawaited(_syncNow());
+            },
+            child: const Text('重试同步'),
+          ),
+          secondaryButton: PushButton(
+            controlSize: ControlSize.large,
+            secondary: true,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('关闭'),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _showConflictDialog({
@@ -798,7 +862,7 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  '请先在终端手动解决冲突后，再重试同步：',
+                  'Nightelf 已尝试中止卡住的 rebase，并改用 merge 拉取。若仍有冲突，请在终端解决后重试：',
                   style: TextStyle(fontSize: 12, color: Color(0xFF9BB4AB)),
                 ),
                 const SizedBox(height: 10),
@@ -944,9 +1008,13 @@ class _VaultSyncSectionState extends ConsumerState<_VaultSyncSection> {
           ),
         if (_message != null) ...[
           const SizedBox(height: 10),
-          Text(
-            _message!,
-            style: const TextStyle(color: Color(0xFFE3F3EA), fontSize: 12),
+          Expanded(
+            child: Text(
+              _message!,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Color(0xFFE3F3EA), fontSize: 12),
+            ),
           ),
         ],
       ],
