@@ -15,13 +15,9 @@ if [[ "${1:-}" == "--rebuild" || "${1:-}" == "rebuild" ]]; then
 fi
 
 load_user_path() {
-  # Finder-launched scripts do not load ~/.zshrc.
-  set +u
-  [[ -f "$HOME/.zprofile" ]] && source "$HOME/.zprofile" >/dev/null 2>&1 || true
-  [[ -f "$HOME/.zshrc" ]] && source "$HOME/.zshrc" >/dev/null 2>&1 || true
-  [[ -f "$HOME/.bash_profile" ]] && source "$HOME/.bash_profile" >/dev/null 2>&1 || true
-  set -u
-  export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/flutter/bin:$HOME/development/flutter/bin:$HOME/fvm/default/bin:$PATH"
+  # Finder-launched .command files run under bash. Never source ~/.zshrc here:
+  # zsh syntax would abort this script with a silent exit 127.
+  export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/homebrew/bin:$HOME/flutter/bin:$HOME/development/flutter/bin:$HOME/fvm/default/bin:$PATH"
 }
 
 find_flutter() {
@@ -73,7 +69,8 @@ fi
 
 if [[ -n "$APP_BUNDLE" ]]; then
   echo "正在打开：$APP_BUNDLE"
-  /usr/bin/open "$APP_BUNDLE"
+  /usr/bin/open "$APP_BUNDLE" || fail "无法打开应用：$APP_BUNDLE"
+  pause_if_finder
   exit 0
 fi
 
@@ -89,4 +86,5 @@ if [[ ! -d "$DEBUG_APP" ]]; then
 fi
 
 echo "正在打开：$DEBUG_APP"
-/usr/bin/open "$DEBUG_APP"
+/usr/bin/open "$DEBUG_APP" || fail "无法打开应用：$DEBUG_APP"
+pause_if_finder
