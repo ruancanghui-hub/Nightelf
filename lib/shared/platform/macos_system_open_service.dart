@@ -39,6 +39,28 @@ class MacosSystemOpenService implements SystemOpenService {
     await _run('openPath', [_open, absolute]);
   }
 
+  @override
+  Future<void> launchScript(String scriptPath) async {
+    final absolute = _requireAbsolute(scriptPath, 'launchScript');
+    final extension = p.extension(absolute).toLowerCase();
+    if (extension == '.command') {
+      await _run('launchScript', [_open, absolute]);
+      return;
+    }
+    if (extension == '.sh') {
+      final directory = p.dirname(absolute);
+      final shellCommand =
+          'cd ${_bashSingleQuote(directory)} && exec bash ${_bashSingleQuote(absolute)}';
+      await _run('launchScript', [
+        '/usr/bin/osascript',
+        '-e',
+        'tell application "Terminal" to do script ${_appleScriptString(shellCommand)}',
+      ]);
+      return;
+    }
+    throw SystemOpenException('launchScript', '仅支持 .sh 或 .command');
+  }
+
   String _requireAbsolute(String path, String operation) {
     if (!p.isAbsolute(path)) {
       throw SystemOpenException(operation, '路径必须是绝对路径：$path');
@@ -59,4 +81,10 @@ class MacosSystemOpenService implements SystemOpenService {
       );
     }
   }
+}
+
+String _bashSingleQuote(String value) => "'${value.replaceAll("'", "'\\''")}'";
+
+String _appleScriptString(String value) {
+  return '"${value.replaceAll(r'\', r'\\').replaceAll('"', r'\"')}"';
 }

@@ -205,7 +205,7 @@ class _AiWorkbenchAppState extends ConsumerState<AiWorkbenchApp> {
     if (await marker.exists()) {
       return selected;
     }
-    const typed = {'prompts', 'skills', 'mcp', 'links', 'workflows', 'assets'};
+    const typed = {'prompts', 'skills', 'mcp', 'links', 'workflows', 'launchers', 'assets'};
     final base = p.basename(selected.path);
     if (!typed.contains(base)) {
       return selected;

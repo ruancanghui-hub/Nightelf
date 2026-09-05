@@ -8,6 +8,7 @@ import 'package:ai_workbench/features/metadata/application/metadata_controller.d
 import 'package:ai_workbench/features/metadata/domain/resource_metadata.dart';
 import 'package:ai_workbench/features/metadata/presentation/collection_editor_sheet.dart';
 import 'package:ai_workbench/features/overview/presentation/emerald_overview_dashboard.dart';
+import 'package:ai_workbench/features/launchers/application/launcher_controller.dart';
 import 'package:ai_workbench/features/links/application/link_controller.dart';
 import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
 import 'package:ai_workbench/features/prompts/application/prompt_controller.dart';
@@ -48,6 +49,7 @@ class WorkbenchShell extends StatefulWidget {
     this.mcpController,
     this.linkController,
     this.workflowController,
+    this.launcherController,
     this.restorationRepository,
     this.onCreatePrompt,
     this.onDuplicatePrompt,
@@ -57,6 +59,7 @@ class WorkbenchShell extends StatefulWidget {
     this.onPasteLink,
     this.onCreateWorkflow,
     this.onImportWorkflow,
+    this.onCreateLauncher,
     this.onRenamed,
   });
 
@@ -72,6 +75,7 @@ class WorkbenchShell extends StatefulWidget {
   final McpController? mcpController;
   final LinkController? linkController;
   final WorkflowController? workflowController;
+  final LauncherController? launcherController;
   final WorkspaceRestorationRepository? restorationRepository;
   final Future<void> Function()? onCreatePrompt;
   final Future<void> Function(WorkbenchResource resource)? onDuplicatePrompt;
@@ -81,6 +85,7 @@ class WorkbenchShell extends StatefulWidget {
   final Future<void> Function()? onPasteLink;
   final Future<void> Function()? onCreateWorkflow;
   final Future<void> Function()? onImportWorkflow;
+  final Future<void> Function()? onCreateLauncher;
   final Future<void> Function(String relativePath)? onRenamed;
 
   @override
@@ -557,6 +562,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     } else if (resource.type == ResourceType.workflowFile &&
         widget.workflowController != null) {
       unawaited(widget.workflowController!.open(relativePath));
+    } else if (resource.type == ResourceType.launcher &&
+        widget.launcherController != null) {
+      unawaited(widget.launcherController!.open(relativePath));
     }
   }
 
@@ -596,6 +604,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
     } else if (resource.type == ResourceType.workflowFile &&
         widget.workflowController != null) {
       unawaited(widget.workflowController!.open(relativePath));
+    } else if (resource.type == ResourceType.launcher &&
+        widget.launcherController != null) {
+      unawaited(widget.launcherController!.open(relativePath));
     }
   }
 
@@ -743,6 +754,28 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                 label: '新建 Workflow',
                 execute: widget.onCreateWorkflow,
               ),
+              WorkbenchCommand(
+                id: 'new-launcher',
+                label: '新建启动器',
+                execute: widget.onCreateLauncher,
+              ),
+              for (final resource in _controller.allResources.where(
+                (resource) => resource.type == ResourceType.launcher,
+              ))
+                WorkbenchCommand(
+                  id: 'launch-${resource.id}',
+                  label: '启动：${resource.title}',
+                  execute: widget.launcherController == null
+                      ? null
+                      : () async {
+                          final relativePath = resource.relativePath;
+                          if (relativePath == null) {
+                            return;
+                          }
+                          await widget.launcherController!.open(relativePath);
+                          await widget.launcherController!.launch();
+                        },
+                ),
             ],
             onResourceSelected: _openResource,
             onDismissed: _closePalette,
@@ -904,6 +937,15 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                         ? widget
                                                               .onImportWorkflow
                                                         : null,
+                                                    onCreateLauncher:
+                                                        !_showFavoritesList &&
+                                                            _controller
+                                                                    .selectedDestination ==
+                                                                ResourceType
+                                                                    .launcher
+                                                        ? widget
+                                                              .onCreateLauncher
+                                                        : null,
                                                   ),
                                                   Expanded(
                                                     child: Column(
@@ -937,6 +979,9 @@ class WorkbenchShellState extends State<WorkbenchShell> {
                                                             workflowController:
                                                                 widget
                                                                     .workflowController,
+                                                            launcherController:
+                                                                widget
+                                                                    .launcherController,
                                                             onRenamed: widget
                                                                 .onRenamed,
                                                             allResources:

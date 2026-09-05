@@ -38,6 +38,7 @@ class WorkbenchSidebar extends StatelessWidget {
     ResourceType.mcpConfiguration: LucideIcons.slidersHorizontal,
     ResourceType.websiteLink: LucideIcons.globe,
     ResourceType.workflowFile: LucideIcons.workflow,
+    ResourceType.launcher: LucideIcons.rocket,
   };
 
   static IconData iconFor(ResourceType type) =>
@@ -131,7 +132,7 @@ class WorkbenchSidebar extends StatelessWidget {
         ),
         title: const Text('帮助'),
         message: const Text(
-          'Nightelf 工作台是本地优先的 AI 资源工作台。用左侧栏目管理提示词、SKILL、MCP、网站链接与 Workflow；从「最近打开」可快速回到常用资源。',
+          'Nightelf 工作台是本地优先的 AI 资源工作台。用左侧栏目管理提示词、SKILL、MCP、网站链接、Workflow 与启动器；从「最近打开」可快速回到常用资源。',
         ),
         primaryButton: PushButton(
           controlSize: ControlSize.large,

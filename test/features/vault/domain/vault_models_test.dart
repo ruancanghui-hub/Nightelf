@@ -21,6 +21,7 @@ void main() {
     expect(VaultPaths.directoryFor(ResourceType.mcp), 'mcp');
     expect(VaultPaths.directoryFor(ResourceType.link), 'links');
     expect(VaultPaths.directoryFor(ResourceType.workflow), 'workflows');
+    expect(VaultPaths.directoryFor(ResourceType.launcher), 'launchers');
   });
 
   test('vault handle exposes its manifest identity', () {
@@ -75,5 +76,6 @@ void main() {
     expect(mcpRecord().type, ResourceType.mcp);
     expect(linkRecord().type, ResourceType.link);
     expect(workflowRecord().type, ResourceType.workflow);
+    expect(launcherRecord().type, ResourceType.launcher);
   });
 }

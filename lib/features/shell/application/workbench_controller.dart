@@ -18,6 +18,7 @@ class WorkbenchController extends ChangeNotifier {
     ResourceType.mcpConfiguration: 'MCP 配置',
     ResourceType.websiteLink: '网站链接',
     ResourceType.workflowFile: 'Workflow 文件',
+    ResourceType.launcher: '启动器',
   };
 
   static const List<WorkbenchResource> _mockResources = [
@@ -61,6 +62,13 @@ class WorkbenchController extends ChangeNotifier {
       type: ResourceType.workflowFile,
       title: '发布前检查',
       subtitle: '发布流程的视觉占位项',
+      isFavorite: false,
+    ),
+    WorkbenchResource(
+      id: 'launcher-nightelf',
+      type: ResourceType.launcher,
+      title: 'Nightelf',
+      subtitle: '一键启动脚本占位项',
       isFavorite: false,
     ),
     WorkbenchResource(

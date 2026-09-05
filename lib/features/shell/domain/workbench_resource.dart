@@ -5,6 +5,7 @@ enum ResourceType {
   mcpConfiguration,
   websiteLink,
   workflowFile,
+  launcher,
 }
 
 /// A workbench list/detail record, optionally backed by a Vault relative path.

@@ -44,6 +44,7 @@ DocumentLanguage _languageFor(String path, ResourceType type) {
     _ => switch (type) {
       ResourceType.mcpConfiguration => DocumentLanguage.json,
       ResourceType.workflowFile => DocumentLanguage.mermaid,
+      ResourceType.launcher => DocumentLanguage.markdown,
       _ => DocumentLanguage.plain,
     },
   };

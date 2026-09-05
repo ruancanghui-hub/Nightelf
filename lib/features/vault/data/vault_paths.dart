@@ -16,5 +16,6 @@ class VaultPaths {
     ResourceType.mcp => 'mcp',
     ResourceType.link => 'links',
     ResourceType.workflow => 'workflows',
+    ResourceType.launcher => 'launchers',
   };
 }

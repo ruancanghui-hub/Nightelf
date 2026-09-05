@@ -3,6 +3,8 @@ import 'package:ai_workbench/features/editor/data/file_document_storage.dart';
 import 'package:ai_workbench/features/editor/domain/document_descriptor.dart';
 import 'package:ai_workbench/features/editor/domain/document_path_resolver.dart';
 import 'package:ai_workbench/features/editor/presentation/text_editor_workspace.dart';
+import 'package:ai_workbench/features/launchers/application/launcher_controller.dart';
+import 'package:ai_workbench/features/launchers/presentation/launcher_workspace.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
 import 'package:ai_workbench/features/metadata/presentation/metadata_inspector.dart';
 import 'package:ai_workbench/features/links/application/link_controller.dart';
@@ -33,6 +35,7 @@ class WorkspaceContent extends StatelessWidget {
     this.linkController,
     this.linkBrowserBuilder,
     this.workflowController,
+    this.launcherController,
     this.onRenamed,
     this.allResources = const [],
     this.onOpenRelated,
@@ -51,6 +54,7 @@ class WorkspaceContent extends StatelessWidget {
   final LinkController? linkController;
   final LinkBrowserBuilder? linkBrowserBuilder;
   final WorkflowController? workflowController;
+  final LauncherController? launcherController;
   final Future<void> Function(String relativePath)? onRenamed;
   final List<WorkbenchResource> allResources;
   final ValueChanged<WorkbenchResource>? onOpenRelated;
@@ -139,6 +143,7 @@ class WorkspaceContent extends StatelessWidget {
                           mcpController: mcpController,
                           linkController: linkController,
                           workflowController: workflowController,
+                          launcherController: launcherController,
                           onRenamed: onRenamed,
                         )
                       : null;
@@ -235,6 +240,7 @@ class WorkspaceContent extends StatelessWidget {
     ResourceType.mcpConfiguration => 'MCP 配置',
     ResourceType.websiteLink => '链接内容',
     ResourceType.workflowFile => 'Workflow 源码',
+    ResourceType.launcher => '启动器',
   };
 
   _WorkspacePresentation _presentationFor(
@@ -279,6 +285,14 @@ class WorkspaceContent extends StatelessWidget {
       primaryAction: hasLiveEditor ? '保存' : '保存模拟版本',
       secondaryAction: '检查模拟流程',
       surface: const WorkflowWorkspace(),
+      live: hasLiveEditor,
+    ),
+    ResourceType.launcher => _WorkspacePresentation(
+      typeLabel: '启动器',
+      status: hasLiveEditor ? '可启动 · 交给系统运行' : '模拟启动器 · 未写入磁盘',
+      primaryAction: '启动',
+      secondaryAction: '选择文件',
+      surface: const LauncherWorkspace(),
       live: hasLiveEditor,
     ),
   };

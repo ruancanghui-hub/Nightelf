@@ -1,3 +1,5 @@
+import 'package:ai_workbench/features/launchers/application/launcher_controller.dart';
+import 'package:ai_workbench/features/launchers/presentation/launcher_workspace.dart';
 import 'package:ai_workbench/features/links/application/link_controller.dart';
 import 'package:ai_workbench/features/links/presentation/link_workspace.dart';
 import 'package:ai_workbench/features/mcp/application/mcp_controller.dart';
@@ -22,6 +24,7 @@ class ResourceWorkspaceRegistry {
     McpController? mcpController,
     LinkController? linkController,
     WorkflowController? workflowController,
+    LauncherController? launcherController,
     Future<void> Function(String relativePath)? onRenamed,
   }) {
     return switch (resource.type) {
@@ -43,6 +46,11 @@ class ResourceWorkspaceRegistry {
       ResourceType.workflowFile when workflowController != null =>
         WorkflowWorkspace(
           controller: workflowController,
+          onRenamed: onRenamed,
+        ),
+      ResourceType.launcher when launcherController != null =>
+        LauncherWorkspace(
+          controller: launcherController,
           onRenamed: onRenamed,
         ),
       _ => null,

@@ -28,6 +28,7 @@ class CommandPalette extends StatefulWidget {
     ResourceType.mcpConfiguration: 'MCP 配置',
     ResourceType.websiteLink: '网站链接',
     ResourceType.workflowFile: 'Workflow 文件',
+    ResourceType.launcher: '启动器',
   };
 
   static IconData _iconForType(ResourceType type) => switch (type) {
@@ -36,6 +37,7 @@ class CommandPalette extends StatefulWidget {
     ResourceType.mcpConfiguration => LucideIcons.slidersHorizontal,
     ResourceType.websiteLink => LucideIcons.globe,
     ResourceType.workflowFile => LucideIcons.workflow,
+    ResourceType.launcher => LucideIcons.rocket,
   };
 
   @override

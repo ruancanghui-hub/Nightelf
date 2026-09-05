@@ -32,6 +32,7 @@ void main() {
           'mcp',
           'links',
           'workflows',
+          'launchers',
           'assets',
         ]) {
           expect(Directory('${root.path}/$name').existsSync(), isTrue);

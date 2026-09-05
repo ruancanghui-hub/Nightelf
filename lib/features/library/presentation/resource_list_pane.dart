@@ -20,6 +20,7 @@ class ResourceListPane extends StatefulWidget {
     this.onPasteLink,
     this.onCreateWorkflow,
     this.onImportWorkflow,
+    this.onCreateLauncher,
     this.title,
     this.resources,
     this.searchPlaceholder,
@@ -39,6 +40,7 @@ class ResourceListPane extends StatefulWidget {
   final Future<void> Function()? onPasteLink;
   final Future<void> Function()? onCreateWorkflow;
   final Future<void> Function()? onImportWorkflow;
+  final Future<void> Function()? onCreateLauncher;
   final String? title;
   final List<WorkbenchResource>? resources;
   final String? searchPlaceholder;
@@ -166,6 +168,14 @@ class _ResourceListPaneState extends State<ResourceListPane> {
                     onPressed: () => widget.onImportWorkflow!(),
                     label: '导入 Workflow 文件',
                     variant: WorkbenchButtonVariant.outline,
+                  ),
+                ],
+                if (widget.onCreateLauncher != null) ...[
+                  const SizedBox(height: 8),
+                  _actionButton(
+                    semanticLabel: '新建启动器',
+                    onPressed: () => widget.onCreateLauncher!(),
+                    label: '新建启动器',
                   ),
                 ],
                 const SizedBox(height: 12),

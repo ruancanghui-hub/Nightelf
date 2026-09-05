@@ -17,4 +17,10 @@ abstract interface class SystemOpenService {
 
   /// Opens a local file or directory with the default macOS application.
   Future<void> openPath(String path);
+
+  /// Hands a one-click launcher script to macOS.
+  ///
+  /// `.command` is opened with `open`. `.sh` is executed in Terminal at the
+  /// script's directory. Nightelf does not keep the process.
+  Future<void> launchScript(String scriptPath);
 }

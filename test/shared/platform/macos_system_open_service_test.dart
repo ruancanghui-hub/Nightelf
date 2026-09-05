@@ -71,4 +71,31 @@ void main() {
     expect(runner.calls.single.executable, '/usr/bin/open');
     expect(runner.calls.single.arguments, ['https://example.com/a%20b']);
   });
+
+  test('opens .command with open and .sh in Terminal', () async {
+    final runner = RecordingProcessRunner();
+    final service = MacosSystemOpenService(runner);
+    await service.launchScript('/tmp/启动 Nightelf.command');
+    expect(runner.calls.single.executable, '/usr/bin/open');
+    expect(runner.calls.single.arguments, ['/tmp/启动 Nightelf.command']);
+
+    runner.calls.clear();
+    await service.launchScript('/tmp/project/script/launch_macos.sh');
+    expect(runner.calls.single.executable, '/usr/bin/osascript');
+    expect(runner.calls.single.arguments.first, '-e');
+    expect(
+      runner.calls.single.arguments.last,
+      contains(
+        "cd '/tmp/project/script' && exec bash '/tmp/project/script/launch_macos.sh'",
+      ),
+    );
+  });
+
+  test('rejects unsupported launcher extensions', () async {
+    final service = MacosSystemOpenService(RecordingProcessRunner());
+    expect(
+      () => service.launchScript('/tmp/run.py'),
+      throwsA(isA<SystemOpenException>()),
+    );
+  });
 }

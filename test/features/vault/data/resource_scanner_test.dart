@@ -37,6 +37,23 @@ void main() {
     );
   });
 
+  test('indexes launcher title and script path', () async {
+    final fixture = await createVaultFixture({
+      'launchers/nightelf.md':
+          '---\nid: launch-1\ntitle: Nightelf\nscriptPath: /tmp/launch_macos.sh\n---\n',
+    });
+    addTearDown(fixture.dispose);
+
+    final records = await fixture.scanner.scan(fixture.handle);
+    final launcher = records.singleWhere(
+      (record) => record.type == ResourceType.launcher,
+    );
+    expect(launcher.title, 'Nightelf');
+    expect(launcher.description, '/tmp/launch_macos.sh');
+    expect(launcher.searchableText, contains('/tmp/launch_macos.sh'));
+    expect(launcher.relativePath, 'launchers/nightelf.md');
+  });
+
   test(
     'reads metadata, falls back to names, and sorts deterministically',
     () async {

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:ai_workbench/features/shell/domain/workbench_resource.dart'
     as shell;
 import 'package:ai_workbench/features/vault/domain/resource_record.dart';
@@ -8,9 +10,7 @@ shell.WorkbenchResource workbenchResourceFromRecord(ResourceRecord record) {
     id: record.id,
     type: _mapType(record.type),
     title: record.title,
-    subtitle: record.description.isEmpty
-        ? record.relativePath
-        : record.description,
+    subtitle: _subtitleFor(record),
     isFavorite: false,
     relativePath: record.relativePath,
     modifiedAt: record.modifiedAt,
@@ -23,4 +23,16 @@ shell.ResourceType _mapType(vault.ResourceType type) => switch (type) {
   vault.ResourceType.mcp => shell.ResourceType.mcpConfiguration,
   vault.ResourceType.link => shell.ResourceType.websiteLink,
   vault.ResourceType.workflow => shell.ResourceType.workflowFile,
+  vault.ResourceType.launcher => shell.ResourceType.launcher,
 };
+
+String _subtitleFor(ResourceRecord record) {
+  if (record.type == vault.ResourceType.launcher) {
+    final path = record.description;
+    if (path.isEmpty || !File(path).existsSync()) {
+      return '路径无效';
+    }
+    return path;
+  }
+  return record.description.isEmpty ? record.relativePath : record.description;
+}

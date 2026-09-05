@@ -5,6 +5,8 @@ import 'package:ai_workbench/features/import/application/import_controller.dart'
 import 'package:ai_workbench/features/import/data/vault_import_repository.dart';
 import 'package:ai_workbench/features/import/presentation/import_review_sheet.dart';
 import 'package:ai_workbench/features/import/presentation/vault_drop_target.dart';
+import 'package:ai_workbench/features/launchers/application/launcher_controller.dart';
+import 'package:ai_workbench/features/launchers/data/file_launcher_repository.dart';
 import 'package:ai_workbench/features/links/application/link_controller.dart';
 import 'package:ai_workbench/features/links/data/file_link_repository.dart';
 import 'package:ai_workbench/features/metadata/application/metadata_controller.dart';
@@ -27,6 +29,7 @@ import 'package:ai_workbench/features/workflows/data/file_workflow_repository.da
 import 'package:ai_workbench/features/workflows/data/json_workflow_layout_repository.dart';
 import 'package:ai_workbench/shared/domain/resource_type.dart';
 import 'package:ai_workbench/shared/platform/directory_picker_service.dart';
+import 'package:ai_workbench/shared/platform/file_script_picker_service.dart';
 import 'package:ai_workbench/shared/platform/flutter_clipboard_service.dart';
 import 'package:ai_workbench/shared/platform/macos_system_open_service.dart';
 import 'package:file_picker/file_picker.dart';
@@ -58,6 +61,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
   late McpController _mcpController;
   late LinkController _linkController;
   late WorkflowController _workflowController;
+  late LauncherController _launcherController;
   late WorkspaceRestorationRepository _restorationRepository;
   bool _reviewOpen = false;
   String? _bannerMessage;
@@ -77,6 +81,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     _mcpController = _createMcpController(root);
     _linkController = _createLinkController(root);
     _workflowController = _createWorkflowController(root);
+    _launcherController = _createLauncherController(root);
     _restorationRepository = WorkspaceRestorationRepository(vaultRoot: root);
     _importController = ImportController(
       repository: VaultImportRepository(),
@@ -100,6 +105,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       _mcpController.dispose();
       _linkController.dispose();
       _workflowController.dispose();
+      _launcherController.dispose();
       final root = widget.openState.handle.root;
       _metadataController = _createMetadataController(root)
         ..addListener(_onMetadataChanged);
@@ -108,6 +114,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       _mcpController = _createMcpController(root);
       _linkController = _createLinkController(root);
       _workflowController = _createWorkflowController(root);
+      _launcherController = _createLauncherController(root);
       _restorationRepository = WorkspaceRestorationRepository(vaultRoot: root);
       _cachedResources = null;
       _cachedResourcesKey = null;
@@ -128,6 +135,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
 
   @override
   void dispose() {
+    _launcherController.dispose();
     _workflowController.dispose();
     _linkController.dispose();
     _mcpController.dispose();
@@ -186,6 +194,15 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     return WorkflowController(
       repository: FileWorkflowRepository(vaultRoot: root),
       layoutRepository: JsonWorkflowLayoutRepository(root: root),
+      vaultRootPath: root.path,
+    );
+  }
+
+  LauncherController _createLauncherController(Directory root) {
+    return LauncherController(
+      repository: FileLauncherRepository(vaultRoot: root),
+      systemOpen: MacosSystemOpenService(),
+      scriptPicker: const FileScriptPickerService(),
       vaultRootPath: root.path,
     );
   }
@@ -300,6 +317,9 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
         case shell.ResourceType.workflowFile:
           await _workflowController.open(relativePath);
           await _workflowController.moveToTrash();
+        case shell.ResourceType.launcher:
+          await _launcherController.open(relativePath);
+          await _launcherController.moveToTrash();
       }
       await widget.vaultController.refreshPaths({relativePath});
       if (!mounted) {
@@ -474,6 +494,21 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
     }
   }
 
+  Future<void> _createLauncher() async {
+    try {
+      final created = await _launcherController.createFromPicker();
+      if (created == null) {
+        return;
+      }
+      await _openCreated(created.relativePath, '已新建启动器：${created.title}');
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _bannerMessage = '新建启动器失败：$error');
+    }
+  }
+
   ResourceType? get _preferredVaultType {
     final type = _preferredShellType;
     if (type == null) {
@@ -485,6 +520,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
       shell.ResourceType.mcpConfiguration => ResourceType.mcp,
       shell.ResourceType.websiteLink => ResourceType.link,
       shell.ResourceType.workflowFile => ResourceType.workflow,
+      shell.ResourceType.launcher => null,
     };
   }
 
@@ -533,6 +569,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                   mcpController: _mcpController,
                   linkController: _linkController,
                   workflowController: _workflowController,
+                  launcherController: _launcherController,
                   onCreatePrompt: _createPrompt,
                   onDuplicatePrompt: _duplicatePrompt,
                   onImportSkill: _importSkill,
@@ -541,6 +578,7 @@ class _OpenVaultWorkbenchState extends State<OpenVaultWorkbench> {
                   onPasteLink: _pasteLink,
                   onCreateWorkflow: _createWorkflow,
                   onImportWorkflow: _importWorkflow,
+                  onCreateLauncher: _createLauncher,
                   onRenamed: _onResourceRenamed,
                   restorationRepository: _restorationRepository,
                 ),

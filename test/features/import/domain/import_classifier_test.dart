@@ -76,6 +76,18 @@ void main() {
     expect((await classifier.classify(source)).reason, '无法自动识别类型');
   });
 
+  test('does not classify shell launch scripts as importable resources', () async {
+    expect(
+      (await classifier.classify(await fixture.file('launch.sh'))).suggestedType,
+      isNull,
+    );
+    expect(
+      (await classifier.classify(await fixture.file('start.command')))
+          .suggestedType,
+      isNull,
+    );
+  });
+
   test('rejects file and directory symlinks', () async {
     final targetFile = await fixture.file('real.md', 'x');
     final targetDir = await fixture.skillDirectory('real-skill');

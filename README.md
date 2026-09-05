@@ -27,7 +27,7 @@ Prompt、SKILL、MCP 配置、常用 AI 网站和 Workflow 很容易散落在聊
 
 **In short:** Nightelf makes a local folder your AI asset library, so the files stay understandable and portable beyond the app.
 
-> Nightelf 管理资源，不运行 MCP server，也不是内置 LLM 聊天客户端。
+> Nightelf 管理资源，不运行 MCP server，也不执行 Workflow；启动器是唯一例外，会把项目里的一键脚本交给 macOS 运行。
 
 ## Capabilities / 功能
 
@@ -37,6 +37,7 @@ Prompt、SKILL、MCP 配置、常用 AI 网站和 Workflow 很容易散落在聊
 - **MCP** — 保存和编辑 JSON 配置，提供 JSON 语法诊断与格式化；配置只作为文件管理，不会由 Nightelf 执行。
 - **网站链接** — 保存链接资料，在内置浏览器中打开 HTTP(S) 页面，或通过 macOS 桌面悬浮球快速在外部打开。
 - **Workflow** — 保存与编辑工作流文档，可在 Mermaid 源码与画布视图之间工作；Nightelf 不执行工作流。
+- **启动器** — 在侧栏收集各项目的 `.sh` / `.command` 路径，点击启动后交给 macOS 运行；脚本文件仍留在原项目目录。
 - **概览、搜索与元数据** — 从 Vault 总览进入资源，按标题、标签和可搜索文本查找；收藏、合集、描述、标签、关联资源与最近打开项随 Vault 保存。
 - **macOS 使用路径** — 原生目录选择、上次 Vault 恢复、Finder / 终端快捷入口，以及网页悬浮球都围绕桌面文件工作流设计。
 
@@ -69,6 +70,7 @@ my-nightelf-vault/
 ├── mcp/                    # MCP JSON 配置
 ├── links/                  # 网站链接记录
 ├── workflows/              # Workflow 文档
+├── launchers/              # 启动器记录（指向项目里的 .sh / .command）
 └── .ai-workbench/          # 应用管理的收藏、合集、资源元数据、本地状态和画布布局
 ```
 

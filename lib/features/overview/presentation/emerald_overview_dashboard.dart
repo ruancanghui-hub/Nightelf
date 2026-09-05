@@ -408,6 +408,7 @@ class EmeraldOverviewDashboard extends StatelessWidget {
     ResourceType.mcpConfiguration => LucideIcons.slidersHorizontal,
     ResourceType.websiteLink => LucideIcons.globe,
     ResourceType.workflowFile => LucideIcons.workflow,
+    ResourceType.launcher => LucideIcons.rocket,
   };
 }
 

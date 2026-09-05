@@ -46,6 +46,7 @@ void main() {
       'MCP 配置',
       '网站链接',
       'Workflow 文件',
+      '启动器',
     ]) {
       expect(
         find.descendant(

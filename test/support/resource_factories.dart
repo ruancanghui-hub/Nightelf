@@ -101,6 +101,26 @@ ResourceRecord workflowRecord({
   searchableText: searchableText ?? 'Workflow 1 Workflow resource workflow',
 );
 
+ResourceRecord launcherRecord({
+  String? id,
+  ResourceType? type,
+  String? relativePath,
+  String? title,
+  String? description,
+  List<String>? tags,
+  DateTime? modifiedAt,
+  String? searchableText,
+}) => _record(
+  id: id ?? 'launcher-1',
+  type: type ?? ResourceType.launcher,
+  relativePath: relativePath ?? 'launchers/launcher-1.md',
+  title: title ?? 'Launcher 1',
+  description: description ?? '/tmp/launch.sh',
+  tags: tags ?? const ['launcher'],
+  modifiedAt: modifiedAt ?? _defaultModifiedAt,
+  searchableText: searchableText ?? 'Launcher 1 /tmp/launch.sh launcher',
+);
+
 final _defaultModifiedAt = DateTime.utc(2026, 8, 8);
 
 ResourceRecord _record({

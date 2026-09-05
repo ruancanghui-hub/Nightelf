@@ -40,6 +40,7 @@ class _VaultDropTargetState extends State<VaultDropTarget> {
     ResourceType.mcp => 'MCP 配置',
     ResourceType.link => '网站链接',
     ResourceType.workflow => 'Workflow 文件',
+    ResourceType.launcher => '启动器',
   };
 
   @override

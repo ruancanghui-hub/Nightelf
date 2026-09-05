@@ -38,6 +38,7 @@ void main() {
       '导航：MCP 配置',
       '导航：网站链接',
       '导航：Workflow 文件',
+      '导航：启动器',
     ]) {
       expect(
         find.byWidgetPredicate(

@@ -219,7 +219,11 @@ class ResourceScanner {
     }
     final title =
         _nonEmptyString(document.metadata['title']) ?? candidate.titleFallback;
-    final description = _nonEmptyString(document.metadata['description']) ?? '';
+    var description = _nonEmptyString(document.metadata['description']) ?? '';
+    final scriptPath = _nonEmptyString(document.metadata['scriptPath']);
+    if (candidate.type == ResourceType.launcher && scriptPath != null) {
+      description = scriptPath;
+    }
     final tags = _tags(document.metadata['tags']);
     final id = await identityStore.resolve(
       type: candidate.type,
@@ -232,6 +236,7 @@ class ResourceScanner {
       description,
       ...tags,
       document.body,
+      ?scriptPath,
     ].where((part) => part.isNotEmpty);
 
     return ResourceRecord(
@@ -289,6 +294,7 @@ bool _isSupported(ResourceType type, String name) {
       '.yml',
       '.json',
     }.contains(extension),
+    ResourceType.launcher => extension == '.md',
   };
 }
 

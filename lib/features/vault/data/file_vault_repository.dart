@@ -18,6 +18,7 @@ const _standardDirectories = <String>[
   'mcp',
   'links',
   'workflows',
+  'launchers',
   'assets',
 ];
 const _gitignoreContents = '''.ai-workbench/local/

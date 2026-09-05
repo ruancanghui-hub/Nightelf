@@ -183,6 +183,7 @@ void main() {
                 ResourceType.mcpConfiguration => 'MCP 配置',
                 ResourceType.websiteLink => '网站链接',
                 ResourceType.workflowFile => 'Workflow 文件',
+                ResourceType.launcher => '启动器',
               },
               onTypeSelected: (_) {},
               onResourceSelected: (_) {},

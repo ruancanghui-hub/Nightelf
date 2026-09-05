@@ -33,6 +33,14 @@ class ImportReviewSheet extends StatefulWidget {
     ResourceType.workflow: 'Workflow 文件',
   };
 
+  static const importableTypes = [
+    ResourceType.prompt,
+    ResourceType.skill,
+    ResourceType.mcp,
+    ResourceType.link,
+    ResourceType.workflow,
+  ];
+
   @override
   State<ImportReviewSheet> createState() => _ImportReviewSheetState();
 }
@@ -658,7 +666,7 @@ class _ConfigPane extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              for (final type in ResourceType.values)
+              for (final type in ImportReviewSheet.importableTypes)
                 WorkbenchButton(
                   semanticLabel: '资源类型：${ImportReviewSheet.typeLabels[type]}',
                   size: WorkbenchButtonSize.sm,
